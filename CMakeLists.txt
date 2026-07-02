@@ -53,5 +53,8 @@ add_executable(masareef WIN32
 )
 target_link_libraries(masareef PRIVATE masareef_core Qt6::Widgets Qt6::Charts)
 
-enable_testing()
-add_subdirectory(tests)
+option(MASAREEF_BUILD_TESTS "Build the unit tests" ON)
+if(MASAREEF_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
