@@ -30,8 +30,6 @@ add_library(masareef_core STATIC
 target_include_directories(masareef_core PUBLIC src)
 target_link_libraries(masareef_core PUBLIC Qt6::Core Qt6::Gui Qt6::Sql)
 
-# Guard removed once the GUI sources land (keeps `ctest` usable during TDD)
-if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/src/mainwindow.cpp)
 add_executable(masareef WIN32
     src/main.cpp
     src/mainwindow.cpp
@@ -54,7 +52,6 @@ add_executable(masareef WIN32
     src/widgets/reminderswidget.h
 )
 target_link_libraries(masareef PRIVATE masareef_core Qt6::Widgets Qt6::Charts)
-endif()
 
 enable_testing()
 add_subdirectory(tests)
