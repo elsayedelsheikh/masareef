@@ -1,6 +1,8 @@
 build/
 build-*/
 packaging/qt/
+packaging/dist/
+packaging/*.zip
 CMakeLists.txt.user
 *.autosave
 .cache/
