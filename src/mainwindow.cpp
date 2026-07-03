@@ -1,10 +1,12 @@
 #include "mainwindow.h"
 
 #include "dialogs/addexpensedialog.h"
+#include "dialogs/budgetdialog.h"
 #include "dialogs/managecategoriesdialog.h"
 #include "dialogs/recurringbillsdialog.h"
 #include "dialogs/settingsdialog.h"
 #include "utils/backupmanager.h"
+#include "utils/theme.h"
 #include "widgets/chartswidget.h"
 #include "widgets/dashboardwidget.h"
 #include "widgets/expenselistwidget.h"
@@ -67,6 +69,8 @@ void MainWindow::buildMenusAndToolbar()
                                                      &MainWindow::manageCategories);
     QAction* billsAction = toolsMenu->addAction(tr("&Recurring Bills…"), this,
                                                 &MainWindow::manageRecurringBills);
+    QAction* budgetAction =
+        toolsMenu->addAction(tr("Monthly &Budget…"), this, &MainWindow::editBudget);
     toolsMenu->addSeparator();
     QAction* settingsAction =
         toolsMenu->addAction(tr("&Settings…"), this, &MainWindow::openSettings);
@@ -85,6 +89,7 @@ void MainWindow::buildMenusAndToolbar()
     toolbar->addAction(addExpenseAction);
     toolbar->addAction(categoriesAction);
     toolbar->addAction(billsAction);
+    toolbar->addAction(budgetAction);
     toolbar->addSeparator();
     toolbar->addAction(settingsAction);
 }
@@ -123,11 +128,20 @@ void MainWindow::manageRecurringBills()
     refreshAll();
 }
 
+void MainWindow::editBudget()
+{
+    BudgetDialog dialog(this);
+    if (dialog.exec() == QDialog::Accepted)
+        refreshAll();
+}
+
 void MainWindow::openSettings()
 {
     SettingsDialog dialog(this);
-    if (dialog.exec() == QDialog::Accepted)
-        refreshAll(); // currency symbol is used everywhere
+    if (dialog.exec() == QDialog::Accepted) {
+        Theme::apply();  // the theme preference may have changed
+        refreshAll();    // the currency code is shown next to every amount
+    }
 }
 
 void MainWindow::backupNow()
@@ -140,9 +154,8 @@ void MainWindow::backupNow()
     if (destFile.isEmpty())
         return;
 
-    QString error;
-    if (!BackupManager::backupTo(destFile, &error)) {
-        QMessageBox::warning(this, tr("Backup Now"), error);
+    if (const Result<void> saved = BackupManager::backupTo(destFile); !saved) {
+        QMessageBox::warning(this, tr("Backup Now"), saved.error().message);
         return;
     }
     QMessageBox::information(this, tr("Backup Now"),
@@ -164,9 +177,8 @@ void MainWindow::restoreFromBackup()
         != QMessageBox::Yes)
         return;
 
-    QString error;
-    if (!BackupManager::restoreFrom(srcFile, &error)) {
-        QMessageBox::warning(this, tr("Restore from Backup"), error);
+    if (const Result<void> restored = BackupManager::restoreFrom(srcFile); !restored) {
+        QMessageBox::warning(this, tr("Restore from Backup"), restored.error().message);
         return;
     }
     refreshAll();

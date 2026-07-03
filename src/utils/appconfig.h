@@ -2,10 +2,16 @@
 
 #include <QString>
 
+enum class ThemePreference { System, Light, Dark };
+
 // QSettings-backed application configuration.
-class AppConfig {
-public:
-    static QString currencyCode();   // default "EGP"
-    static QString currencySymbol(); // default "ج.م"
-    static void setCurrency(const QString& code, const QString& symbol);
-};
+namespace AppConfig {
+
+// ISO currency code shown after every amount, e.g. "100.50 EGP".
+[[nodiscard]] QString currencyCode(); // default "EGP"
+void setCurrencyCode(const QString& code);
+
+[[nodiscard]] ThemePreference theme(); // default System
+void setTheme(ThemePreference theme);
+
+} // namespace AppConfig

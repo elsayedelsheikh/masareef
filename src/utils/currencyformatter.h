@@ -1,14 +1,20 @@
 #pragma once
 
+#include "core/money.h"
+
 #include <QString>
 
-// Money is stored as integer minor units (piasters/cents, 2 decimals).
-class CurrencyFormatter {
-public:
-    // 10050 -> "100.50 ج.م"
-    static QString format(qint64 minorUnits);
-    // Amount without the currency symbol: 10050 -> "100.50"
-    static QString formatPlain(qint64 minorUnits);
-    // "100.5" / "100,5" -> 10050. Sets *ok=false on invalid input.
-    static qint64 parse(const QString& text, bool* ok = nullptr);
-};
+#include <optional>
+
+// Rendering and parsing of Money for the UI. Amounts always display with
+// the ISO currency code (e.g. "1,234.50 EGP") — never a localized symbol.
+namespace CurrencyFormatter {
+
+// 10050 minor units -> "100.50 EGP"
+[[nodiscard]] QString format(Money amount);
+// Amount without the currency code: 10050 -> "100.50"
+[[nodiscard]] QString formatPlain(Money amount);
+// "100.5" / "100,5" -> 10050 minor units. Rejects negatives and garbage.
+[[nodiscard]] std::optional<Money> parse(const QString& text);
+
+} // namespace CurrencyFormatter

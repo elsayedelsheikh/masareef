@@ -1,0 +1,21 @@
+#pragma once
+
+#include <QDate>
+#include <QString>
+
+#include <optional>
+
+// How often a recurring bill comes due. The database stores the lowercase
+// string form; everything above the storage layer works with the enum so
+// a typo'd string cannot travel through the program.
+enum class Recurrence { Monthly, Quarterly, Yearly };
+
+[[nodiscard]] QString toDbString(Recurrence recurrence);
+[[nodiscard]] std::optional<Recurrence> recurrenceFromDbString(const QString& value);
+
+// Translated, capitalized label for UI display.
+[[nodiscard]] QString displayLabel(Recurrence recurrence);
+
+// Next due date after `from`. QDate clamps the day-of-month automatically
+// (Jan 31 -> Feb 28).
+[[nodiscard]] QDate advance(QDate from, Recurrence recurrence);

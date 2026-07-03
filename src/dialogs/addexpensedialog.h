@@ -1,8 +1,11 @@
 #pragma once
 
-#include "models/recurringbillmodel.h"
+#include "core/money.h"
+#include "storage/billrepository.h"
 
 #include <QDialog>
+
+#include <optional>
 
 class QComboBox;
 class QDateEdit;
@@ -26,7 +29,7 @@ private:
     enum class Mode { Add, Edit, MarkPaid };
 
     void populateCategories(int selectedId = -1);
-    qint64 parsedAmount(bool* ok) const;
+    [[nodiscard]] std::optional<Money> parsedAmount() const;
 
     Mode m_mode = Mode::Add;
     int m_expenseId = 0;

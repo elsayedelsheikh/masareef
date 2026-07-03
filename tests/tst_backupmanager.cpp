@@ -1,6 +1,6 @@
 #include "testutils.h"
 
-#include "models/expensemodel.h"
+#include "storage/expenserepository.h"
 #include "utils/backupmanager.h"
 
 #include <QTemporaryDir>
@@ -72,25 +72,28 @@ void TestBackupManager::startupBackup_skipsWhenNoDatabase()
 
 void TestBackupManager::backupAndRestore_roundTrip()
 {
-    QString error;
     const int billsId = TestUtils::categoryId(QStringLiteral("Bills"));
-    QVERIFY(ExpenseModel::addExpense(billsId, 100, QStringLiteral("kept"),
-                                     QDate(2026, 7, 1), QString(), QVariant(), &error));
+    VERIFY_OK(ExpenseRepository::add({ .categoryId = billsId,
+                                       .amount = Money::fromMinorUnits(100),
+                                       .description = QStringLiteral("kept"),
+                                       .date = QDate(2026, 7, 1) }));
 
     QTemporaryDir tempDir;
     QVERIFY(tempDir.isValid());
     const QString backupFile = tempDir.filePath(QStringLiteral("manual-backup.db"));
-    QVERIFY2(BackupManager::backupTo(backupFile, &error), qPrintable(error));
+    VERIFY_OK(BackupManager::backupTo(backupFile));
     QVERIFY(QFile::exists(backupFile));
     QVERIFY(DatabaseManager::instance().isOpen());
 
     // Change the data after the backup...
-    QVERIFY(ExpenseModel::addExpense(billsId, 999, QStringLiteral("lost"),
-                                     QDate(2026, 7, 2), QString(), QVariant(), &error));
+    VERIFY_OK(ExpenseRepository::add({ .categoryId = billsId,
+                                       .amount = Money::fromMinorUnits(999),
+                                       .description = QStringLiteral("lost"),
+                                       .date = QDate(2026, 7, 2) }));
     QCOMPARE(TestUtils::countRows(QStringLiteral("expenses")), 2);
 
     // ...restore rolls back to the snapshot and the app keeps working
-    QVERIFY2(BackupManager::restoreFrom(backupFile, &error), qPrintable(error));
+    VERIFY_OK(BackupManager::restoreFrom(backupFile));
     QVERIFY(DatabaseManager::instance().isOpen());
     QCOMPARE(TestUtils::countRows(QStringLiteral("expenses")), 1);
 
@@ -110,9 +113,9 @@ void TestBackupManager::restore_rejectsInvalidFile()
     f.write("this is not a sqlite database");
     f.close();
 
-    QString error;
-    QVERIFY(!BackupManager::restoreFrom(bogus, &error));
-    QVERIFY(!error.isEmpty());
+    const Result<void> restored = BackupManager::restoreFrom(bogus);
+    QVERIFY(!restored);
+    QVERIFY(!restored.error().message.isEmpty());
     // Original DB is untouched and still open after the failed restore
     QCOMPARE(TestUtils::countRows(QStringLiteral("categories")), 3);
 }

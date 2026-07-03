@@ -17,6 +17,7 @@ private slots:
     void addExpense();
     void manageCategories();
     void manageRecurringBills();
+    void editBudget();
     void openSettings();
     void backupNow();
     void restoreFromBackup();

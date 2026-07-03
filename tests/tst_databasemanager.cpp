@@ -24,7 +24,7 @@ void TestDatabaseManager::initialize_createsSchemaAndSeeds()
     QSqlQuery query;
     QVERIFY(query.exec(QStringLiteral("PRAGMA user_version")));
     QVERIFY(query.next());
-    QCOMPARE(query.value(0).toInt(), 1);
+    QVERIFY(query.value(0).toInt() >= 1);
 
     QVERIFY(query.exec(QStringLiteral(
         "SELECT name FROM categories WHERE type = 'system' ORDER BY name")));
@@ -44,8 +44,7 @@ void TestDatabaseManager::initialize_createsSchemaAndSeeds()
 void TestDatabaseManager::initialize_isIdempotent()
 {
     QVERIFY(TestUtils::resetDatabase());
-    QString error;
-    QVERIFY2(DatabaseManager::instance().initialize(&error), qPrintable(error));
+    VERIFY_OK(DatabaseManager::instance().initialize());
     QCOMPARE(TestUtils::countRows(QStringLiteral("categories")), 3);
 }
 

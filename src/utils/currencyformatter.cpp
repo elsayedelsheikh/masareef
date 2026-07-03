@@ -4,12 +4,17 @@
 
 #include <QStringList>
 
-QString CurrencyFormatter::formatPlain(qint64 minorUnits)
+#include <limits>
+
+namespace CurrencyFormatter {
+
+QString formatPlain(Money amount)
 {
-    const bool negative = minorUnits < 0;
-    const qint64 absValue = negative ? -minorUnits : minorUnits;
-    const qint64 whole = absValue / 100;
-    const qint64 frac = absValue % 100;
+    const bool negative = amount.isNegative();
+    const std::int64_t absValue =
+        negative ? -amount.minorUnits() : amount.minorUnits();
+    const std::int64_t whole = absValue / 100;
+    const std::int64_t frac = absValue % 100;
 
     QString wholeStr = QString::number(whole);
     for (int i = wholeStr.size() - 3; i > 0; i -= 3)
@@ -20,29 +25,26 @@ QString CurrencyFormatter::formatPlain(qint64 minorUnits)
              QStringLiteral("%1").arg(frac, 2, 10, QLatin1Char('0')));
 }
 
-QString CurrencyFormatter::format(qint64 minorUnits)
+QString format(Money amount)
 {
-    return formatPlain(minorUnits) + QLatin1Char(' ') + AppConfig::currencySymbol();
+    return formatPlain(amount) + QLatin1Char(' ') + AppConfig::currencyCode();
 }
 
-qint64 CurrencyFormatter::parse(const QString& text, bool* ok)
+std::optional<Money> parse(const QString& text)
 {
-    if (ok)
-        *ok = false;
-
     QString t = text.trimmed();
     t.replace(QLatin1Char(','), QLatin1Char('.'));
     if (t.isEmpty())
-        return 0;
+        return std::nullopt;
 
     const QStringList parts = t.split(QLatin1Char('.'));
     if (parts.size() > 2)
-        return 0;
+        return std::nullopt;
 
     bool numOk = true;
     const qint64 whole = parts.at(0).isEmpty() ? 0 : parts.at(0).toLongLong(&numOk);
     if (!numOk || whole < 0)
-        return 0;
+        return std::nullopt;
 
     qint64 frac = 0;
     if (parts.size() == 2 && !parts.at(1).isEmpty()) {
@@ -51,13 +53,13 @@ qint64 CurrencyFormatter::parse(const QString& text, bool* ok)
             fracStr.append(QLatin1Char('0'));
         frac = fracStr.toLongLong(&numOk);
         if (!numOk)
-            return 0;
+            return std::nullopt;
     }
 
     if (whole > (std::numeric_limits<qint64>::max() - frac) / 100)
-        return 0;
+        return std::nullopt;
 
-    if (ok)
-        *ok = true;
-    return whole * 100 + frac;
+    return Money::fromMinorUnits(whole * 100 + frac);
 }
+
+} // namespace CurrencyFormatter

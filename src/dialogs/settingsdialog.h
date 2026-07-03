@@ -3,7 +3,6 @@
 #include <QDialog>
 
 class QComboBox;
-class QLineEdit;
 
 class SettingsDialog : public QDialog {
     Q_OBJECT
@@ -14,5 +13,5 @@ public:
 
 private:
     QComboBox* m_code = nullptr;
-    QLineEdit* m_symbol = nullptr;
+    QComboBox* m_theme = nullptr;
 };

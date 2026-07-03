@@ -1,7 +1,7 @@
 #include "dialogs/recurringbillsdialog.h"
 
-#include "models/categorymodel.h"
-#include "models/recurringbillmodel.h"
+#include "storage/billrepository.h"
+#include "storage/categoryrepository.h"
 #include "utils/appconfig.h"
 #include "utils/currencyformatter.h"
 
@@ -32,7 +32,7 @@ public:
 
         m_name = new QLineEdit(this);
         m_category = new QComboBox(this);
-        const QList<Category> categories = CategoryModel::allCategories();
+        const QList<Category> categories = CategoryRepository::all();
         for (const Category& cat : categories)
             m_category->addItem(cat.name, cat.id);
 
@@ -41,9 +41,9 @@ public:
             QRegularExpression(QStringLiteral(R"(\d{1,9}([.,]\d{0,2})?)")), m_amount));
 
         m_recurrence = new QComboBox(this);
-        m_recurrence->addItem(tr("Monthly"), QStringLiteral("monthly"));
-        m_recurrence->addItem(tr("Quarterly"), QStringLiteral("quarterly"));
-        m_recurrence->addItem(tr("Yearly"), QStringLiteral("yearly"));
+        for (const Recurrence recurrence :
+             { Recurrence::Monthly, Recurrence::Quarterly, Recurrence::Yearly })
+            m_recurrence->addItem(displayLabel(recurrence), int(recurrence));
 
         m_nextDue = new QDateEdit(QDate::currentDate(), this);
         m_nextDue->setCalendarPopup(true);
@@ -58,7 +58,7 @@ public:
             m_category->setCurrentIndex(m_category->findData(existing->categoryId));
             m_amount->setText(
                 CurrencyFormatter::formatPlain(existing->amount).remove(QLatin1Char(',')));
-            m_recurrence->setCurrentIndex(m_recurrence->findData(existing->recurrence));
+            m_recurrence->setCurrentIndex(m_recurrence->findData(int(existing->recurrence)));
             m_nextDue->setDate(existing->nextDue);
             m_notes->setPlainText(existing->notes);
         }
@@ -71,7 +71,7 @@ public:
         auto* layout = new QFormLayout(this);
         layout->addRow(tr("Bill name:"), m_name);
         layout->addRow(tr("Category:"), m_category);
-        layout->addRow(tr("Expected amount (%1):").arg(AppConfig::currencySymbol()), m_amount);
+        layout->addRow(tr("Expected amount (%1):").arg(AppConfig::currencyCode()), m_amount);
         layout->addRow(tr("Repeats:"), m_recurrence);
         layout->addRow(tr("Next due date:"), m_nextDue);
         layout->addRow(tr("Notes:"), m_notes);
@@ -84,9 +84,8 @@ public:
             QMessageBox::warning(this, windowTitle(), tr("Please enter a bill name."));
             return;
         }
-        bool ok = false;
-        const qint64 amount = CurrencyFormatter::parse(m_amount->text(), &ok);
-        if (!ok || amount <= 0) {
+        const std::optional<Money> amount = CurrencyFormatter::parse(m_amount->text());
+        if (!amount || !amount->isPositive()) {
             QMessageBox::warning(this, windowTitle(),
                                  tr("Please enter a valid amount greater than zero."));
             return;
@@ -94,17 +93,18 @@ public:
 
         m_bill.name = m_name->text().trimmed();
         m_bill.categoryId = m_category->currentData().toInt();
-        m_bill.amount = amount;
-        m_bill.recurrence = m_recurrence->currentData().toString();
+        m_bill.amount = *amount;
+        m_bill.recurrence = Recurrence(m_recurrence->currentData().toInt());
         m_bill.nextDue = m_nextDue->date();
         m_bill.notes = m_notes->toPlainText().trimmed();
 
-        QString error;
-        const bool saved = m_bill.id > 0 ? RecurringBillModel::updateBill(m_bill, &error)
-                                         : RecurringBillModel::addBill(m_bill, &error);
+        const Result<void> saved = m_bill.id > 0
+            ? BillRepository::update(m_bill)
+            : BillRepository::add(m_bill).transform([](int) {});
         if (!saved) {
             QMessageBox::warning(this, windowTitle(),
-                                 tr("The bill could not be saved:\n%1").arg(error));
+                                 tr("The bill could not be saved:\n%1")
+                                     .arg(saved.error().message));
             return;
         }
         QDialog::accept();
@@ -174,7 +174,7 @@ RecurringBillsDialog::RecurringBillsDialog(QWidget* parent)
 
 void RecurringBillsDialog::reload()
 {
-    const QList<RecurringBill> bills = RecurringBillModel::bills(false);
+    const QList<RecurringBill> bills = BillRepository::all(false);
     m_table->setRowCount(bills.size());
     for (int row = 0; row < bills.size(); ++row) {
         const RecurringBill& bill = bills.at(row);
@@ -186,7 +186,7 @@ void RecurringBillsDialog::reload()
         amountItem->setTextAlignment(Qt::AlignRight | Qt::AlignVCenter);
         m_table->setItem(row, TcAmount, amountItem);
         m_table->setItem(row, TcRecurrence,
-                         new QTableWidgetItem(RecurringBillModel::recurrenceLabel(bill.recurrence)));
+                         new QTableWidgetItem(displayLabel(bill.recurrence)));
         m_table->setItem(row, TcNextDue,
                          new QTableWidgetItem(bill.nextDue.toString(Qt::ISODate)));
         m_table->setItem(row, TcActive,
@@ -212,9 +212,8 @@ void RecurringBillsDialog::updateButtonStates()
     m_deleteButton->setEnabled(hasSelection);
     m_toggleButton->setEnabled(hasSelection);
     if (hasSelection) {
-        RecurringBill bill;
-        if (RecurringBillModel::fetchBill(id, &bill))
-            m_toggleButton->setText(bill.active ? tr("Deactivate") : tr("Activate"));
+        if (const auto bill = BillRepository::fetch(id))
+            m_toggleButton->setText(bill->active ? tr("Deactivate") : tr("Activate"));
     }
 }
 
@@ -228,10 +227,12 @@ void RecurringBillsDialog::addBill()
 void RecurringBillsDialog::editBill()
 {
     const int id = selectedBillId();
-    RecurringBill bill;
-    if (id <= 0 || !RecurringBillModel::fetchBill(id, &bill))
+    if (id <= 0)
         return;
-    BillEditDialog dialog(this, &bill);
+    const auto bill = BillRepository::fetch(id);
+    if (!bill)
+        return;
+    BillEditDialog dialog(this, &*bill);
     if (dialog.exec() == QDialog::Accepted)
         reload();
 }
@@ -239,18 +240,19 @@ void RecurringBillsDialog::editBill()
 void RecurringBillsDialog::deleteBill()
 {
     const int id = selectedBillId();
-    RecurringBill bill;
-    if (id <= 0 || !RecurringBillModel::fetchBill(id, &bill))
+    if (id <= 0)
+        return;
+    const auto bill = BillRepository::fetch(id);
+    if (!bill)
         return;
     if (QMessageBox::question(
             this, tr("Delete Recurring Bill"),
-            tr("Delete \"%1\"? Past payments stay in your expense history.").arg(bill.name))
+            tr("Delete \"%1\"? Past payments stay in your expense history.").arg(bill->name))
         != QMessageBox::Yes)
         return;
 
-    QString error;
-    if (!RecurringBillModel::removeBill(id, &error)) {
-        QMessageBox::warning(this, tr("Delete Recurring Bill"), error);
+    if (auto res = BillRepository::remove(id); !res) {
+        QMessageBox::warning(this, tr("Delete Recurring Bill"), res.error().message);
         return;
     }
     reload();
@@ -259,12 +261,13 @@ void RecurringBillsDialog::deleteBill()
 void RecurringBillsDialog::toggleActive()
 {
     const int id = selectedBillId();
-    RecurringBill bill;
-    if (id <= 0 || !RecurringBillModel::fetchBill(id, &bill))
+    if (id <= 0)
         return;
-    QString error;
-    if (!RecurringBillModel::setActive(id, !bill.active, &error)) {
-        QMessageBox::warning(this, tr("Recurring Bills"), error);
+    const auto bill = BillRepository::fetch(id);
+    if (!bill)
+        return;
+    if (auto res = BillRepository::setActive(id, !bill->active); !res) {
+        QMessageBox::warning(this, tr("Recurring Bills"), res.error().message);
         return;
     }
     reload();

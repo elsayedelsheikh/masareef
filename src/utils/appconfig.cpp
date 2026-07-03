@@ -9,19 +9,38 @@ QSettings settings()
 }
 } // namespace
 
-QString AppConfig::currencyCode()
+namespace AppConfig {
+
+QString currencyCode()
 {
-    return settings().value(QStringLiteral("currency/code"), QStringLiteral("EGP")).toString();
+    return settings()
+        .value(QStringLiteral("currency/code"), QStringLiteral("EGP"))
+        .toString();
 }
 
-QString AppConfig::currencySymbol()
+void setCurrencyCode(const QString& code)
 {
-    return settings().value(QStringLiteral("currency/symbol"), QString::fromUtf8("ج.م")).toString();
+    settings().setValue(QStringLiteral("currency/code"), code);
 }
 
-void AppConfig::setCurrency(const QString& code, const QString& symbol)
+ThemePreference theme()
 {
-    QSettings s = settings();
-    s.setValue(QStringLiteral("currency/code"), code);
-    s.setValue(QStringLiteral("currency/symbol"), symbol);
+    const QString value =
+        settings().value(QStringLiteral("appearance/theme"), QStringLiteral("system"))
+            .toString();
+    if (value == QLatin1String("light"))
+        return ThemePreference::Light;
+    if (value == QLatin1String("dark"))
+        return ThemePreference::Dark;
+    return ThemePreference::System;
 }
+
+void setTheme(ThemePreference theme)
+{
+    const QString value = theme == ThemePreference::Light ? QStringLiteral("light")
+        : theme == ThemePreference::Dark                  ? QStringLiteral("dark")
+                                                          : QStringLiteral("system");
+    settings().setValue(QStringLiteral("appearance/theme"), value);
+}
+
+} // namespace AppConfig

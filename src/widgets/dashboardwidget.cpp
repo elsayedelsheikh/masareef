@@ -1,7 +1,7 @@
 #include "widgets/dashboardwidget.h"
 
-#include "models/expensemodel.h"
-#include "models/recurringbillmodel.h"
+#include "storage/billrepository.h"
+#include "storage/expenserepository.h"
 #include "utils/currencyformatter.h"
 #include "utils/palette.h"
 
@@ -57,11 +57,11 @@ QWidget* DashboardWidget::makeStatCard(const QString& title, QLabel*& valueLabel
     card->setFrameShape(QFrame::StyledPanel);
     card->setStyleSheet(QStringLiteral(
         "QFrame { background: %1; border: 1px solid %2; border-radius: 6px; }")
-        .arg(QLatin1String(Palette::kSurface), QLatin1String(Palette::kGridline)));
+        .arg(Palette::surface().name(), Palette::gridline().name()));
 
     auto* titleLabel = new QLabel(title, card);
     titleLabel->setStyleSheet(QStringLiteral("color: %1; border: none;")
-                                  .arg(QLatin1String(Palette::kSecondaryInk)));
+                                  .arg(Palette::secondaryInk().name()));
 
     valueLabel = new QLabel(QStringLiteral("—"), card);
     QFont valueFont = valueLabel->font();
@@ -69,7 +69,7 @@ QWidget* DashboardWidget::makeStatCard(const QString& title, QLabel*& valueLabel
     valueFont.setBold(true);
     valueLabel->setFont(valueFont);
     valueLabel->setStyleSheet(QStringLiteral("color: %1; border: none;")
-                                  .arg(QLatin1String(Palette::kPrimaryInk)));
+                                  .arg(Palette::primaryInk().name()));
 
     auto* layout = new QVBoxLayout(card);
     layout->addWidget(titleLabel);
@@ -91,13 +91,13 @@ void DashboardWidget::refresh()
     const QDate monthStart(today.year(), today.month(), 1);
     const QDate monthEnd = monthStart.addMonths(1).addDays(-1);
 
-    m_totalValue->setText(
-        CurrencyFormatter::format(ExpenseModel::totalBetween(monthStart, monthEnd)));
+    m_totalValue->setText(CurrencyFormatter::format(
+        ExpenseRepository::totalFor({ .from = monthStart, .to = monthEnd })));
 
-    const QList<ExpenseModel::CategoryTotal> totals =
-        ExpenseModel::totalsByCategory(monthStart, monthEnd);
+    const QList<ExpenseRepository::CategoryTotal> totals =
+        ExpenseRepository::totalsByCategory(monthStart, monthEnd);
 
-    qint64 bills = 0, groceries = 0;
+    Money bills, groceries;
     for (const auto& t : totals) {
         if (t.name == QLatin1String("Bills"))
             bills = t.total;
@@ -110,8 +110,7 @@ void DashboardWidget::refresh()
     clearLayout(m_categoryRows);
     if (totals.isEmpty()) {
         auto* empty = new QLabel(tr("No expenses recorded this month yet."), this);
-        empty->setStyleSheet(QStringLiteral("color: %1;")
-                                 .arg(QLatin1String(Palette::kMutedInk)));
+        empty->setStyleSheet(QStringLiteral("color: %1;").arg(Palette::mutedInk().name()));
         m_categoryRows->addWidget(empty);
     }
     for (const auto& t : totals) {
@@ -121,7 +120,7 @@ void DashboardWidget::refresh()
         auto* swatch = new QLabel(row);
         swatch->setFixedSize(10, 10);
         swatch->setStyleSheet(QStringLiteral("background: %1; border-radius: 2px;")
-                                  .arg(t.color.isEmpty() ? QStringLiteral("#888888") : t.color));
+                                  .arg(Palette::series(t.color).name()));
         auto* name = new QLabel(t.name, row);
         auto* amount = new QLabel(CurrencyFormatter::format(t.total), row);
         rowLayout->addWidget(swatch);
@@ -133,7 +132,7 @@ void DashboardWidget::refresh()
     m_categoryRows->addStretch();
 
     clearLayout(m_reminderRows);
-    const QList<RecurringBill> billsDue = RecurringBillModel::bills(true);
+    const QList<RecurringBill> billsDue = BillRepository::all(true);
     int shown = 0;
     for (const RecurringBill& bill : billsDue) {
         if (bill.daysUntilDue() > 7)
@@ -147,8 +146,8 @@ void DashboardWidget::refresh()
                                    : tr("due %1").arg(bill.nextDue.toString(Qt::ISODate)),
                                row);
         due->setStyleSheet(QStringLiteral("color: %1;")
-                               .arg(QLatin1String(bill.isOverdue() ? Palette::kCritical
-                                                                   : Palette::kSerious)));
+                               .arg((bill.isOverdue() ? Palette::critical()
+                                                      : Palette::serious()).name()));
         auto* amount = new QLabel(CurrencyFormatter::format(bill.amount), row);
         rowLayout->addWidget(name);
         rowLayout->addWidget(due);
@@ -159,8 +158,7 @@ void DashboardWidget::refresh()
     }
     if (shown == 0) {
         auto* empty = new QLabel(tr("Nothing due in the next 7 days."), this);
-        empty->setStyleSheet(QStringLiteral("color: %1;")
-                                 .arg(QLatin1String(Palette::kMutedInk)));
+        empty->setStyleSheet(QStringLiteral("color: %1;").arg(Palette::mutedInk().name()));
         m_reminderRows->addWidget(empty);
     }
     m_reminderRows->addStretch();

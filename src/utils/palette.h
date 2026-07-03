@@ -1,10 +1,24 @@
 #pragma once
 
-// Validated categorical palette (fixed slot order — the order is the
-// colorblind-safety mechanism, do not reshuffle). Slots 1-3 seed the
-// system categories; the rest are offered for user categories.
+#include <QColor>
+#include <QString>
+
+// Validated palette (light and dark selected separately — the dark column
+// is the same hues re-stepped for the dark surface, not an automatic flip).
+// The categorical slot order is the colorblind-safety mechanism, do not
+// reshuffle. Slots 1-3 seed the system categories.
+//
+// The DB stores the *light* hex per category; series() maps a stored color
+// to its dark-mode counterpart at display time, so the data never changes
+// with the theme.
 namespace Palette {
 
+enum class Mode { Light, Dark };
+
+void setMode(Mode mode); // set by Theme::apply()
+[[nodiscard]] Mode mode();
+
+// Stored (light) categorical hex values — what gets written to the DB
 inline constexpr const char* kCategorical[] = {
     "#2a78d6", // blue    — Bills
     "#1baf7a", // aqua    — Groceries
@@ -17,17 +31,22 @@ inline constexpr const char* kCategorical[] = {
 };
 inline constexpr int kCategoricalCount = 8;
 
-// Status colors (reserved for state, never used as series colors)
-inline constexpr const char* kCritical = "#d03b3b"; // overdue
-inline constexpr const char* kSerious  = "#ec835a"; // due within 7 days
-inline constexpr const char* kGood     = "#0ca30c";
+// Display color for a stored category color in the current mode. Known
+// categorical slots swap to their dark-mode step; custom user colors pass
+// through unchanged.
+[[nodiscard]] QColor series(const QString& storedColor);
 
-// Chart chrome
-inline constexpr const char* kSurface   = "#fcfcfb";
-inline constexpr const char* kGridline  = "#e1e0d9";
-inline constexpr const char* kAxisLine  = "#c3c2b7";
-inline constexpr const char* kMutedInk  = "#898781";
-inline constexpr const char* kPrimaryInk = "#0b0b0b";
-inline constexpr const char* kSecondaryInk = "#52514e";
+// Status colors (reserved for state, never used as series colors)
+[[nodiscard]] QColor critical(); // overdue / over budget
+[[nodiscard]] QColor serious();  // due within 7 days / near budget limit
+[[nodiscard]] QColor good();
+
+// Chart chrome & ink
+[[nodiscard]] QColor surface();
+[[nodiscard]] QColor gridline();
+[[nodiscard]] QColor axisLine();
+[[nodiscard]] QColor mutedInk();
+[[nodiscard]] QColor primaryInk();
+[[nodiscard]] QColor secondaryInk();
 
 } // namespace Palette

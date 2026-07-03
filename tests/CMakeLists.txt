@@ -1,11 +1,14 @@
 find_package(Qt6 REQUIRED COMPONENTS Test)
 
 set(MASAREEF_TESTS
+    recurrence
     currencyformatter
     databasemanager
-    categorymodel
+    categoryrepository
+    expenserepository
     expensemodel
-    recurringbillmodel
+    billrepository
+    budgetrepository
     backupmanager
 )
 

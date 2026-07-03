@@ -1,3 +1,4 @@
+#include "core/money.h"
 #include "utils/appconfig.h"
 #include "utils/currencyformatter.h"
 
@@ -8,7 +9,7 @@ class TestCurrencyFormatter : public QObject {
 private slots:
     void formatPlain_data();
     void formatPlain();
-    void format_appendsSymbol();
+    void format_appendsCurrencyCode();
     void parse_data();
     void parse();
 };
@@ -28,13 +29,13 @@ void TestCurrencyFormatter::formatPlain()
 {
     QFETCH(qint64, minor);
     QFETCH(QString, expected);
-    QCOMPARE(CurrencyFormatter::formatPlain(minor), expected);
+    QCOMPARE(CurrencyFormatter::formatPlain(Money::fromMinorUnits(minor)), expected);
 }
 
-void TestCurrencyFormatter::format_appendsSymbol()
+void TestCurrencyFormatter::format_appendsCurrencyCode()
 {
-    QCOMPARE(CurrencyFormatter::format(10050),
-             QStringLiteral("100.50 ") + AppConfig::currencySymbol());
+    QCOMPARE(CurrencyFormatter::format(Money::fromMinorUnits(10050)),
+             QStringLiteral("100.50 ") + AppConfig::currencyCode());
 }
 
 void TestCurrencyFormatter::parse_data()
@@ -60,11 +61,10 @@ void TestCurrencyFormatter::parse()
     QFETCH(QString, text);
     QFETCH(bool, expectOk);
     QFETCH(qint64, expected);
-    bool ok = false;
-    const qint64 value = CurrencyFormatter::parse(text, &ok);
-    QCOMPARE(ok, expectOk);
+    const std::optional<Money> value = CurrencyFormatter::parse(text);
+    QCOMPARE(value.has_value(), expectOk);
     if (expectOk)
-        QCOMPARE(value, expected);
+        QCOMPARE(value->minorUnits(), expected);
 }
 
 QTEST_GUILESS_MAIN(TestCurrencyFormatter)

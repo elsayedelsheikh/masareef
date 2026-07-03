@@ -9,15 +9,76 @@
 #include <QVariant>
 
 namespace {
-constexpr int kSchemaVersion = 1;
+constexpr int kSchemaVersion = 2;
 
-bool execOrFail(QSqlQuery& query, const QString& sql, QString* error)
+Result<void> execOrFail(QSqlQuery& query, const QString& sql)
 {
     if (query.exec(sql))
-        return true;
-    if (error)
-        *error = query.lastError().text() + QStringLiteral("\nSQL: ") + sql;
-    return false;
+        return {};
+    return fail(query.lastError().text() + QStringLiteral("\nSQL: ") + sql);
+}
+
+// Version 1: the original tables plus the seeded system categories.
+const QStringList kV1Statements = {
+    QStringLiteral(
+        "CREATE TABLE categories ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " name TEXT UNIQUE NOT NULL,"
+        " type TEXT NOT NULL CHECK(type IN ('system','user')),"
+        " color TEXT)"),
+    QStringLiteral(
+        "CREATE TABLE recurring_bills ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,"
+        " name TEXT NOT NULL,"
+        " amount INTEGER NOT NULL,"
+        " recurrence TEXT NOT NULL CHECK(recurrence IN ('monthly','quarterly','yearly')),"
+        " next_due_date DATE NOT NULL,"
+        " is_active INTEGER DEFAULT 1,"
+        " notes TEXT)"),
+    QStringLiteral(
+        "CREATE TABLE expenses ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,"
+        " amount INTEGER NOT NULL,"
+        " description TEXT,"
+        " expense_date DATE NOT NULL,"
+        " notes TEXT,"
+        " recurring_bill_id INTEGER REFERENCES recurring_bills(id) ON DELETE SET NULL)"),
+    QStringLiteral("CREATE INDEX idx_expenses_date ON expenses(expense_date)"),
+    QStringLiteral("CREATE INDEX idx_expenses_category ON expenses(category_id)"),
+    QStringLiteral("CREATE INDEX idx_recurring_due ON recurring_bills(next_due_date)"),
+};
+
+// Version 2: monthly budgets. category_id NULL is the overall budget; the
+// COALESCE index makes both the overall row and each per-category row
+// unique (SQLite treats NULLs as distinct in a plain UNIQUE constraint).
+const QStringList kV2Statements = {
+    QStringLiteral(
+        "CREATE TABLE budgets ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " category_id INTEGER REFERENCES categories(id) ON DELETE CASCADE,"
+        " amount INTEGER NOT NULL CHECK(amount >= 0))"),
+    QStringLiteral(
+        "CREATE UNIQUE INDEX idx_budgets_category ON budgets(COALESCE(category_id, -1))"),
+};
+
+Result<void> seedSystemCategories(QSqlQuery& query)
+{
+    const struct { const char* name; const char* color; } seeds[] = {
+        { "Bills", Palette::kCategorical[0] },
+        { "Groceries", Palette::kCategorical[1] },
+        { "Other", Palette::kCategorical[2] },
+    };
+    for (const auto& seed : seeds) {
+        query.prepare(QStringLiteral(
+            "INSERT INTO categories (name, type, color) VALUES (?, 'system', ?)"));
+        query.addBindValue(QString::fromUtf8(seed.name));
+        query.addBindValue(QString::fromUtf8(seed.color));
+        if (!query.exec())
+            return fail(query.lastError().text());
+    }
+    return {};
 }
 } // namespace
 
@@ -47,29 +108,23 @@ bool DatabaseManager::isOpen() const
     return QSqlDatabase::contains() && QSqlDatabase::database().isOpen();
 }
 
-bool DatabaseManager::initialize(QString* error)
+Result<void> DatabaseManager::initialize()
 {
-    if (!QDir().mkpath(dataDirPath())) {
-        if (error)
-            *error = QStringLiteral("Could not create data directory: %1").arg(dataDirPath());
-        return false;
-    }
+    if (!QDir().mkpath(dataDirPath()))
+        return fail(QStringLiteral("Could not create data directory: %1").arg(dataDirPath()));
 
     QSqlDatabase db = QSqlDatabase::contains()
         ? QSqlDatabase::database(QSqlDatabase::defaultConnection, false)
         : QSqlDatabase::addDatabase(QStringLiteral("QSQLITE"));
     db.setDatabaseName(databaseFilePath());
 
-    if (!db.open()) {
-        if (error)
-            *error = db.lastError().text();
-        return false;
-    }
+    if (!db.open())
+        return fail(db.lastError().text());
 
     QSqlQuery pragma(db);
     pragma.exec(QStringLiteral("PRAGMA foreign_keys = ON"));
 
-    return migrate(db, error);
+    return migrate(db);
 }
 
 void DatabaseManager::close()
@@ -80,91 +135,48 @@ void DatabaseManager::close()
     }
 }
 
-bool DatabaseManager::migrate(QSqlDatabase& db, QString* error)
+Result<void> DatabaseManager::migrate(QSqlDatabase& db)
 {
     QSqlQuery query(db);
-    if (!execOrFail(query, QStringLiteral("PRAGMA user_version"), error))
-        return false;
+    if (auto res = execOrFail(query, QStringLiteral("PRAGMA user_version")); !res)
+        return res;
     int version = 0;
     if (query.next())
         version = query.value(0).toInt();
 
     if (version >= kSchemaVersion)
-        return true;
+        return {};
 
-    if (!db.transaction()) {
-        if (error)
-            *error = db.lastError().text();
-        return false;
-    }
+    if (!db.transaction())
+        return fail(db.lastError().text());
 
-    const QStringList statements = {
-        QStringLiteral(
-            "CREATE TABLE categories ("
-            " id INTEGER PRIMARY KEY AUTOINCREMENT,"
-            " name TEXT UNIQUE NOT NULL,"
-            " type TEXT NOT NULL CHECK(type IN ('system','user')),"
-            " color TEXT)"),
-        QStringLiteral(
-            "CREATE TABLE recurring_bills ("
-            " id INTEGER PRIMARY KEY AUTOINCREMENT,"
-            " category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,"
-            " name TEXT NOT NULL,"
-            " amount INTEGER NOT NULL,"
-            " recurrence TEXT NOT NULL CHECK(recurrence IN ('monthly','quarterly','yearly')),"
-            " next_due_date DATE NOT NULL,"
-            " is_active INTEGER DEFAULT 1,"
-            " notes TEXT)"),
-        QStringLiteral(
-            "CREATE TABLE expenses ("
-            " id INTEGER PRIMARY KEY AUTOINCREMENT,"
-            " category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,"
-            " amount INTEGER NOT NULL,"
-            " description TEXT,"
-            " expense_date DATE NOT NULL,"
-            " notes TEXT,"
-            " recurring_bill_id INTEGER REFERENCES recurring_bills(id) ON DELETE SET NULL)"),
-        QStringLiteral("CREATE INDEX idx_expenses_date ON expenses(expense_date)"),
-        QStringLiteral("CREATE INDEX idx_expenses_category ON expenses(category_id)"),
-        QStringLiteral("CREATE INDEX idx_recurring_due ON recurring_bills(next_due_date)"),
-    };
-
-    for (const QString& sql : statements) {
-        if (!execOrFail(query, sql, error)) {
-            db.rollback();
-            return false;
+    // Run every migration step the file hasn't seen yet, in order, inside
+    // one transaction, so a half-migrated database can never be committed.
+    const auto step = [&]() -> Result<void> {
+        if (version < 1) {
+            for (const QString& sql : kV1Statements)
+                if (auto res = execOrFail(query, sql); !res)
+                    return res;
+            if (auto res = seedSystemCategories(query); !res)
+                return res;
         }
-    }
-
-    // Seed the undeletable system categories with fixed palette slots
-    const struct { const char* name; const char* color; } seeds[] = {
-        { "Bills", Palette::kCategorical[0] },
-        { "Groceries", Palette::kCategorical[1] },
-        { "Other", Palette::kCategorical[2] },
-    };
-    for (const auto& seed : seeds) {
-        query.prepare(QStringLiteral(
-            "INSERT INTO categories (name, type, color) VALUES (?, 'system', ?)"));
-        query.addBindValue(QString::fromUtf8(seed.name));
-        query.addBindValue(QString::fromUtf8(seed.color));
-        if (!query.exec()) {
-            if (error)
-                *error = query.lastError().text();
-            db.rollback();
-            return false;
+        if (version < 2) {
+            for (const QString& sql : kV2Statements)
+                if (auto res = execOrFail(query, sql); !res)
+                    return res;
         }
-    }
+        return execOrFail(query,
+                          QStringLiteral("PRAGMA user_version = %1").arg(kSchemaVersion));
+    }();
 
-    if (!execOrFail(query, QStringLiteral("PRAGMA user_version = %1").arg(kSchemaVersion), error)) {
+    if (!step) {
         db.rollback();
-        return false;
+        return step;
     }
-
     if (!db.commit()) {
-        if (error)
-            *error = db.lastError().text();
+        const QString message = db.lastError().text();
         db.rollback();
-        return false;
+        return fail(message);
     }
-    return true;
+    return {};
 }

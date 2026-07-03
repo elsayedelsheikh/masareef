@@ -1,7 +1,7 @@
 #include "widgets/reminderswidget.h"
 
 #include "dialogs/addexpensedialog.h"
-#include "models/recurringbillmodel.h"
+#include "storage/billrepository.h"
 #include "utils/currencyformatter.h"
 #include "utils/palette.h"
 
@@ -35,7 +35,7 @@ void RemindersWidget::refresh()
         delete item;
     }
 
-    const QList<RecurringBill> all = RecurringBillModel::bills(true);
+    const QList<RecurringBill> all = BillRepository::all(true);
     QList<RecurringBill> overdue, dueSoon, dueThisMonth, later;
     for (const RecurringBill& bill : all) {
         if (bill.isOverdue())
@@ -55,15 +55,14 @@ void RemindersWidget::refresh()
                "to get reminders here."),
             this);
         empty->setWordWrap(true);
-        empty->setStyleSheet(QStringLiteral("color: %1;")
-                                 .arg(QLatin1String(Palette::kMutedInk)));
+        empty->setStyleSheet(QStringLiteral("color: %1;").arg(Palette::mutedInk().name()));
         m_sections->addWidget(empty);
     } else {
-        addSection(tr("Overdue"), QLatin1String(Palette::kCritical), overdue);
-        addSection(tr("Due in the next 7 days"), QLatin1String(Palette::kSerious), dueSoon);
-        addSection(tr("Due in the next 30 days"), QLatin1String(Palette::kSecondaryInk),
+        addSection(tr("Overdue"), Palette::critical().name(), overdue);
+        addSection(tr("Due in the next 7 days"), Palette::serious().name(), dueSoon);
+        addSection(tr("Due in the next 30 days"), Palette::secondaryInk().name(),
                    dueThisMonth);
-        addSection(tr("Later"), QLatin1String(Palette::kMutedInk), later);
+        addSection(tr("Later"), Palette::mutedInk().name(), later);
     }
     m_sections->addStretch();
 }
@@ -91,7 +90,7 @@ QWidget* RemindersWidget::makeBillRow(const RecurringBill& bill, const QString& 
     row->setFrameShape(QFrame::StyledPanel);
     row->setStyleSheet(QStringLiteral(
         "QFrame { background: %1; border: 1px solid %2; border-radius: 4px; }")
-        .arg(QLatin1String(Palette::kSurface), QLatin1String(Palette::kGridline)));
+        .arg(Palette::surface().name(), Palette::gridline().name()));
 
     auto* name = new QLabel(bill.name, row);
     QFont nameFont = name->font();
@@ -101,7 +100,7 @@ QWidget* RemindersWidget::makeBillRow(const RecurringBill& bill, const QString& 
 
     auto* details = new QLabel(
         tr("%1 · %2 · due %3")
-            .arg(bill.categoryName, RecurringBillModel::recurrenceLabel(bill.recurrence),
+            .arg(bill.categoryName, displayLabel(bill.recurrence),
                  bill.nextDue.toString(Qt::ISODate)),
         row);
     details->setStyleSheet(QStringLiteral("color: %1; border: none;").arg(accentColor));

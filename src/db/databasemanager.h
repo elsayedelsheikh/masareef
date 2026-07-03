@@ -1,5 +1,7 @@
 #pragma once
 
+#include "core/result.h"
+
 #include <QSqlDatabase>
 #include <QString>
 
@@ -10,17 +12,17 @@ class DatabaseManager {
 public:
     static DatabaseManager& instance();
 
-    bool initialize(QString* error = nullptr);
+    [[nodiscard]] Result<void> initialize();
     void close();
-    bool isOpen() const;
+    [[nodiscard]] bool isOpen() const;
 
-    static QString dataDirPath();
-    static QString databaseFilePath();
-    static QString backupsDirPath();
+    [[nodiscard]] static QString dataDirPath();
+    [[nodiscard]] static QString databaseFilePath();
+    [[nodiscard]] static QString backupsDirPath();
 
 private:
     DatabaseManager() = default;
     Q_DISABLE_COPY_MOVE(DatabaseManager)
 
-    bool migrate(QSqlDatabase& db, QString* error);
+    [[nodiscard]] Result<void> migrate(QSqlDatabase& db);
 };

@@ -1,8 +1,9 @@
 #include "widgets/expenselistwidget.h"
 
 #include "dialogs/addexpensedialog.h"
-#include "models/categorymodel.h"
 #include "models/expensemodel.h"
+#include "storage/categoryrepository.h"
+#include "storage/expenserepository.h"
 #include "utils/currencyformatter.h"
 
 #include <QComboBox>
@@ -82,7 +83,7 @@ void ExpenseListWidget::refresh()
         const int previousId = m_category->currentData().toInt();
         m_category->clear();
         m_category->addItem(tr("All categories"), -1);
-        const QList<Category> categories = CategoryModel::allCategories();
+        const QList<Category> categories = CategoryRepository::all();
         for (const Category& cat : categories)
             m_category->addItem(cat.name, cat.id);
         const int index = m_category->findData(previousId);
@@ -93,8 +94,9 @@ void ExpenseListWidget::refresh()
 
 void ExpenseListWidget::applyFilters()
 {
-    m_model->setDateRange(m_from->date(), m_to->date());
-    m_model->setCategoryFilter(m_category->currentData().toInt());
+    m_model->setFilter({ .from = m_from->date(),
+                         .to = m_to->date(),
+                         .categoryId = m_category->currentData().toInt() });
     m_model->refresh();
     m_totalLabel->setText(CurrencyFormatter::format(m_model->filteredTotal()));
 
@@ -146,9 +148,8 @@ void ExpenseListWidget::deleteSelected()
         != QMessageBox::Yes)
         return;
 
-    QString error;
-    if (!ExpenseModel::deleteExpense(id, &error)) {
-        QMessageBox::warning(this, tr("Delete Expense"), error);
+    if (const Result<void> removed = ExpenseRepository::remove(id); !removed) {
+        QMessageBox::warning(this, tr("Delete Expense"), removed.error().message);
         return;
     }
     emit dataChanged();

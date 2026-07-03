@@ -81,9 +81,9 @@ void ManageCategoriesDialog::addCategory()
     if (name.trimmed().isEmpty())
         return;
 
-    QString error;
-    if (!CategoryModel::addCategory(name, CategoryModel::suggestedColor(), &error)) {
-        QMessageBox::warning(this, tr("Add Category"), error);
+    if (auto res = CategoryRepository::add(name, CategoryRepository::suggestedColor());
+        !res) {
+        QMessageBox::warning(this, tr("Add Category"), res.error().message);
         return;
     }
     m_model->reload();
@@ -100,9 +100,8 @@ void ManageCategoriesDialog::renameCategory()
     if (name.trimmed().isEmpty() || name == cat.name)
         return;
 
-    QString error;
-    if (!CategoryModel::renameCategory(cat.id, name, &error)) {
-        QMessageBox::warning(this, tr("Rename Category"), error);
+    if (auto res = CategoryRepository::rename(cat.id, name); !res) {
+        QMessageBox::warning(this, tr("Rename Category"), res.error().message);
         return;
     }
     m_model->reload();
@@ -119,9 +118,8 @@ void ManageCategoriesDialog::changeColor()
     if (!color.isValid())
         return;
 
-    QString error;
-    if (!CategoryModel::setColor(cat.id, color.name(), &error)) {
-        QMessageBox::warning(this, tr("Category Color"), error);
+    if (auto res = CategoryRepository::setColor(cat.id, color.name()); !res) {
+        QMessageBox::warning(this, tr("Category Color"), res.error().message);
         return;
     }
     m_model->reload();
@@ -138,9 +136,8 @@ void ManageCategoriesDialog::deleteCategory()
         != QMessageBox::Yes)
         return;
 
-    QString error;
-    if (!CategoryModel::removeCategory(cat.id, &error)) {
-        QMessageBox::warning(this, tr("Delete Category"), error);
+    if (auto res = CategoryRepository::remove(cat.id); !res) {
+        QMessageBox::warning(this, tr("Delete Category"), res.error().message);
         return;
     }
     m_model->reload();

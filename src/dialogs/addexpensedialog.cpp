@@ -1,7 +1,7 @@
 #include "dialogs/addexpensedialog.h"
 
-#include "models/categorymodel.h"
-#include "models/expensemodel.h"
+#include "storage/categoryrepository.h"
+#include "storage/expenserepository.h"
 #include "utils/appconfig.h"
 #include "utils/currencyformatter.h"
 
@@ -43,7 +43,7 @@ AddExpenseDialog::AddExpenseDialog(QWidget* parent)
 
     auto* layout = new QFormLayout(this);
     layout->addRow(tr("Category:"), m_category);
-    layout->addRow(tr("Amount (%1):").arg(AppConfig::currencySymbol()), m_amount);
+    layout->addRow(tr("Amount (%1):").arg(AppConfig::currencyCode()), m_amount);
     layout->addRow(tr("Date:"), m_date);
     layout->addRow(tr("Description:"), m_description);
     layout->addRow(tr("Notes:"), m_notes);
@@ -55,7 +55,7 @@ AddExpenseDialog::AddExpenseDialog(QWidget* parent)
 void AddExpenseDialog::populateCategories(int selectedId)
 {
     m_category->clear();
-    const QList<Category> categories = CategoryModel::allCategories();
+    const QList<Category> categories = CategoryRepository::all();
     for (const Category& cat : categories) {
         m_category->addItem(cat.name, cat.id);
         if (!cat.color.isEmpty())
@@ -78,18 +78,19 @@ void AddExpenseDialog::setPreselectedCategory(int categoryId)
 
 void AddExpenseDialog::setEditMode(int expenseId)
 {
-    ExpenseModel::Expense expense;
-    if (!ExpenseModel::fetchExpense(expenseId, &expense))
+    const auto expense = ExpenseRepository::fetch(expenseId);
+    if (!expense)
         return;
 
     m_mode = Mode::Edit;
     m_expenseId = expenseId;
     setWindowTitle(tr("Edit Expense"));
-    setPreselectedCategory(expense.categoryId);
-    m_amount->setText(CurrencyFormatter::formatPlain(expense.amount).remove(QLatin1Char(',')));
-    m_date->setDate(expense.date);
-    m_description->setText(expense.description);
-    m_notes->setPlainText(expense.notes);
+    setPreselectedCategory(expense->categoryId);
+    m_amount->setText(
+        CurrencyFormatter::formatPlain(expense->amount).remove(QLatin1Char(',')));
+    m_date->setDate(expense->date);
+    m_description->setText(expense->description);
+    m_notes->setPlainText(expense->notes);
 }
 
 void AddExpenseDialog::setMarkPaidMode(const RecurringBill& bill)
@@ -104,16 +105,15 @@ void AddExpenseDialog::setMarkPaidMode(const RecurringBill& bill)
     m_amount->selectAll();
 }
 
-qint64 AddExpenseDialog::parsedAmount(bool* ok) const
+std::optional<Money> AddExpenseDialog::parsedAmount() const
 {
-    return CurrencyFormatter::parse(m_amount->text(), ok);
+    return CurrencyFormatter::parse(m_amount->text());
 }
 
 void AddExpenseDialog::accept()
 {
-    bool ok = false;
-    const qint64 amount = parsedAmount(&ok);
-    if (!ok || amount <= 0) {
+    const std::optional<Money> amount = parsedAmount();
+    if (!amount || !amount->isPositive()) {
         QMessageBox::warning(this, windowTitle(),
                              tr("Please enter a valid amount greater than zero."));
         m_amount->setFocus();
@@ -124,31 +124,31 @@ void AddExpenseDialog::accept()
         return;
     }
 
-    const int categoryId = m_category->currentData().toInt();
-    const QDate date = m_date->date();
-    const QString description = m_description->text().trimmed();
-    const QString notes = m_notes->toPlainText().trimmed();
+    Expense expense;
+    expense.id = m_expenseId;
+    expense.categoryId = m_category->currentData().toInt();
+    expense.amount = *amount;
+    expense.date = m_date->date();
+    expense.description = m_description->text().trimmed();
+    expense.notes = m_notes->toPlainText().trimmed();
 
-    QString error;
-    bool saved = false;
-    switch (m_mode) {
-    case Mode::Add:
-        saved = ExpenseModel::addExpense(categoryId, amount, description, date, notes,
-                                         QVariant(), &error);
-        break;
-    case Mode::Edit:
-        saved = ExpenseModel::updateExpense(m_expenseId, categoryId, amount, description,
-                                            date, notes, &error);
-        break;
-    case Mode::MarkPaid:
-        saved = RecurringBillModel::markPaid(m_bill.id, amount, date, description, notes,
-                                             &error);
-        break;
-    }
+    const Result<void> saved = [&]() -> Result<void> {
+        switch (m_mode) {
+        case Mode::Edit:
+            return ExpenseRepository::update(expense);
+        case Mode::MarkPaid:
+            return BillRepository::markPaid(m_bill.id, expense.amount, expense.date,
+                                            expense.description, expense.notes);
+        case Mode::Add:
+            break;
+        }
+        return ExpenseRepository::add(expense).transform([](int) {});
+    }();
 
     if (!saved) {
         QMessageBox::warning(this, windowTitle(),
-                             tr("The expense could not be saved:\n%1").arg(error));
+                             tr("The expense could not be saved:\n%1")
+                                 .arg(saved.error().message));
         return;
     }
     QDialog::accept();
