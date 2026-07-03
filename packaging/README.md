@@ -4,7 +4,7 @@ Run **from Windows PowerShell** (the script downloads its own Qt + MinGW on
 first run, ~1 GB into `%LOCALAPPDATA%\masareef-build\qt`):
 
 ```powershell
-cd \\wsl$\Ubuntu\home\sayed\Projects\life-keeper\packaging   # or a Windows clone of the repo
+cd \\wsl$\Ubuntu\home\sayed\Projects\masareef\packaging   # or a Windows clone of the repo
 .\build-windows.ps1
 ```
 
