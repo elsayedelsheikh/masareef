@@ -1,0 +1,67 @@
+{
+    "version": 6,
+    "configurePresets": [
+        {
+            "name": "desktop",
+            "displayName": "Desktop (system Qt, Widgets)",
+            "binaryDir": "${sourceDir}/build-desktop",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_COMPILER": "g++-13"
+            }
+        },
+        {
+            "name": "host-qml",
+            "displayName": "Host QML dev build (Qt 6.11 gcc_64)",
+            "binaryDir": "${sourceDir}/build-qml",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_COMPILER": "g++-13",
+                "CMAKE_PREFIX_PATH": "/opt/Qt/6.11.0/gcc_64",
+                "MASAREEF_BUILD_QML": "ON"
+            }
+        },
+        {
+            "name": "android-arm64",
+            "displayName": "Android arm64-v8a (devices)",
+            "binaryDir": "${sourceDir}/build-android",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "/opt/Qt/6.11.0/android_arm64_v8a/lib/cmake/Qt6/qt.toolchain.cmake",
+                "QT_HOST_PATH": "/opt/Qt/6.11.0/gcc_64",
+                "ANDROID_SDK_ROOT": "$env{HOME}/Android/Sdk",
+                "ANDROID_NDK_ROOT": "$env{HOME}/Android/Sdk/ndk/27.2.12479018"
+            }
+        },
+        {
+            "name": "android-x86_64",
+            "displayName": "Android x86_64 (emulator)",
+            "binaryDir": "${sourceDir}/build-android-x86_64",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_TOOLCHAIN_FILE": "/opt/Qt/6.11.0/android_x86_64/lib/cmake/Qt6/qt.toolchain.cmake",
+                "QT_HOST_PATH": "/opt/Qt/6.11.0/gcc_64",
+                "ANDROID_SDK_ROOT": "$env{HOME}/Android/Sdk",
+                "ANDROID_NDK_ROOT": "$env{HOME}/Android/Sdk/ndk/27.2.12479018"
+            }
+        }
+    ],
+    "buildPresets": [
+        { "name": "desktop", "configurePreset": "desktop" },
+        { "name": "host-qml", "configurePreset": "host-qml" },
+        { "name": "android-arm64", "configurePreset": "android-arm64" },
+        { "name": "android-x86_64", "configurePreset": "android-x86_64" }
+    ],
+    "testPresets": [
+        {
+            "name": "desktop",
+            "configurePreset": "desktop",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "host-qml",
+            "configurePreset": "host-qml",
+            "output": { "outputOnFailure": true }
+        }
+    ]
+}

@@ -7,7 +7,14 @@ set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets Sql Charts)
+# The QML/Android app is opt-in so the system-Qt desktop build is unaffected
+option(MASAREEF_BUILD_QML "Build the QML/Android app" OFF)
+
+if(ANDROID)
+    find_package(Qt6 REQUIRED COMPONENTS Core Gui Sql)
+else()
+    find_package(Qt6 REQUIRED COMPONENTS Widgets Sql Charts)
+endif()
 
 # Non-GUI core (value types, storage, models, utils) — shared by the app
 # and the tests
@@ -42,6 +49,7 @@ add_library(masareef_core STATIC
 target_include_directories(masareef_core PUBLIC src)
 target_link_libraries(masareef_core PUBLIC Qt6::Core Qt6::Gui Qt6::Sql)
 
+if(NOT ANDROID)
 add_executable(masareef WIN32
     src/main.cpp
     src/mainwindow.cpp
@@ -68,9 +76,14 @@ add_executable(masareef WIN32
     src/widgets/reminderswidget.h
 )
 target_link_libraries(masareef PRIVATE masareef_core Qt6::Widgets Qt6::Charts)
+endif()
+
+if(ANDROID OR MASAREEF_BUILD_QML)
+    add_subdirectory(src/mobile)
+endif()
 
 option(MASAREEF_BUILD_TESTS "Build the unit tests" ON)
-if(MASAREEF_BUILD_TESTS)
+if(MASAREEF_BUILD_TESTS AND NOT ANDROID)
     enable_testing()
     add_subdirectory(tests)
 endif()

@@ -3,6 +3,8 @@ build-*/
 packaging/qt/
 packaging/dist/
 packaging/*.zip
+*.qm
+src/mobile/android/build/
 CMakeLists.txt.user
 *.autosave
 .cache/
