@@ -4,6 +4,7 @@
 
 #include <QDir>
 #include <QFile>
+#include <QSettings>
 #include <QSqlQuery>
 #include <QStandardPaths>
 #include <QVariant>
@@ -24,6 +25,16 @@ namespace TestUtils {
 inline void enableTestMode()
 {
     QStandardPaths::setTestModeEnabled(true);
+}
+
+// Redirects QSettings into the test-mode config dir so tests that write
+// AppConfig (currency, theme, language) never touch the real configuration.
+// Call after enableTestMode().
+inline void isolateSettings()
+{
+    QSettings::setPath(
+        QSettings::NativeFormat, QSettings::UserScope,
+        QStandardPaths::writableLocation(QStandardPaths::GenericConfigLocation));
 }
 
 inline bool resetDatabase()

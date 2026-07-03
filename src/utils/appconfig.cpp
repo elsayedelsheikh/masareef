@@ -35,6 +35,24 @@ ThemePreference theme()
     return ThemePreference::System;
 }
 
+QString language()
+{
+    // Not "general/...": QSettings' INI format reserves the General section
+    // for top-level keys and mangles a group of that name to "%General",
+    // which no longer matches on re-read in a fresh process.
+    const QString value =
+        settings().value(QStringLiteral("locale/language"), QStringLiteral("system"))
+            .toString();
+    if (value == QLatin1String("en") || value == QLatin1String("ar"))
+        return value;
+    return QStringLiteral("system");
+}
+
+void setLanguage(const QString& language)
+{
+    settings().setValue(QStringLiteral("locale/language"), language);
+}
+
 void setTheme(ThemePreference theme)
 {
     const QString value = theme == ThemePreference::Light ? QStringLiteral("light")
