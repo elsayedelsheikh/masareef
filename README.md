@@ -26,14 +26,19 @@ designated initializers throughout. See [Architecture](#architecture).
 
 - CMake ≥ 3.16
 - A C++23 compiler (GCC 13+ or equivalent — `std::expected` is required)
-- Qt 6 with the **Widgets**, **Sql**, **Charts** and **Test** modules
-  (developed against Qt 6.9)
+- Qt **≥ 6.5** with the **Widgets**, **Sql**, **Charts** and **Test**
+  modules (developed against Qt 6.9). Older Qt is rejected at configure
+  time: moc before 6.5 cannot parse the C++23 standard headers
+  (`<expected>`, `<concepts>`) this codebase uses.
 
-On Ubuntu/Debian, a distribution Qt works if it ships Qt Charts
-(`qt6-base-dev qt6-charts-dev`); otherwise install Qt via the
+On Ubuntu/Debian, a distribution Qt works if it is new enough and ships
+Qt Charts (`qt6-base-dev qt6-charts-dev`). **Ubuntu 24.04 LTS ships
+Qt 6.4.2, which is too old** — Ubuntu 24.10 and later (Qt 6.6+) are fine.
+On 24.04, install Qt via the
 [online installer](https://www.qt.io/download-qt-installer) or
 [aqtinstall](https://github.com/miurahr/aqtinstall) and point
-`CMAKE_PREFIX_PATH` at it.
+`CMAKE_PREFIX_PATH` at it (or use the `host-qml` preset, which does this
+for a `/opt/Qt` install — see below).
 
 ## Building
 
@@ -80,6 +85,14 @@ matching host kit** (`gcc_64`), Android SDK with NDK r27, JDK 17+.
 | `host-qml` | Desktop + QML app + **all** tests on the host Qt kit |
 | `android-arm64` | APK for real devices |
 | `android-x86_64` | APK for the emulator |
+
+If the system Qt is older than 6.5 (e.g. Ubuntu 24.04 LTS), the `desktop`
+preset still works — just point it at an installer kit:
+
+```sh
+cmake --preset desktop -DCMAKE_PREFIX_PATH=/opt/Qt/6.11.0/gcc_64
+cmake --build --preset desktop -j$(nproc)
+```
 
 ```sh
 # Develop/test on the host (the QML app runs in a desktop window)

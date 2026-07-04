@@ -10,10 +10,13 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # The QML/Android app is opt-in so the system-Qt desktop build is unaffected
 option(MASAREEF_BUILD_QML "Build the QML/Android app" OFF)
 
+# Qt < 6.5 is rejected up front: its moc cannot parse the C++23 standard
+# headers this codebase pulls in (<expected>, <concepts>), so the build
+# would otherwise die later with an opaque AutoMoc parse error.
 if(ANDROID)
-    find_package(Qt6 REQUIRED COMPONENTS Core Gui Sql)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Sql)
 else()
-    find_package(Qt6 REQUIRED COMPONENTS Widgets Sql Charts)
+    find_package(Qt6 6.5 REQUIRED COMPONENTS Widgets Sql Charts)
 endif()
 
 # Non-GUI core (value types, storage, models, utils) — shared by the app
