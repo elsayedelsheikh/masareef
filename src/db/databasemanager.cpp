@@ -84,11 +84,8 @@ Result<void> seedDefaultCategories(QSqlQuery& query)
 // Version 3: categories are no longer split into system/user — every
 // category (seeded or added) is deletable, with reassignment for in-use
 // ones. The column and its CHECK stay for schema stability; existing
-// 'system' rows just become 'user'.
-// ponytail: the real v2->v3 upgrade path (an existing DB with 'system'
-// rows) isn't covered by a test — it would need duplicating the v1/v2 seed
-// SQL to build a pre-migration fixture. The statement itself is a
-// no-op-safe UPDATE; add the fixture if a real migration bug ever surfaces.
+// 'system' rows just become 'user'. The real v2->v3 upgrade path is
+// covered by upgrade_v2ToV3_migratesSystemCategories in tst_databasemanager.
 const QStringList kV3Statements = {
     QStringLiteral("UPDATE categories SET type = 'user' WHERE type = 'system'"),
 };

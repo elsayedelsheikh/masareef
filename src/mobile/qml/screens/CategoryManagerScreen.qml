@@ -193,10 +193,15 @@ Page {
         modal: true
         standardButtons: Dialog.Save | Dialog.Cancel
 
+        // Save stays disabled until a destination is chosen, so the user can't
+        // trigger a confusing "Category not found." error by saving nothing.
+        onOpened: {
+            const save = standardButton(Dialog.Save)
+            if (save)
+                save.enabled = Qt.binding(() => picker.selectedCategoryId >= 0)
+        }
+
         onAccepted: {
-            // removeAndReassign fails cleanly (and reports via lastError) when
-            // no target was picked, so no separate "nothing selected" guard
-            // is needed here.
             if (!screen.categories.removeAndReassign(reassignDialog.categoryId,
                                                       picker.selectedCategoryId))
                 snackbar.show(screen.categories.lastError)
