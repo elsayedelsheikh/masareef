@@ -18,7 +18,7 @@ Item {
         name: "NavBar"
         when: windowShown
 
-        function test_hasFourTabs() {
+        function test_hasFiveTabs() {
             compare(navBar.count, 5)
         }
 

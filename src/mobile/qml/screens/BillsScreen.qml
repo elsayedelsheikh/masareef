@@ -11,6 +11,10 @@ Item {
     property BillController controller
     property BillListModel model
 
+    // Tapping a row asks the shell to open the edit sheet (which lives at
+    // window level so it overlays correctly).
+    signal editRequested(int billId)
+
     // Keep the model in sync with controller-driven changes
     Connections {
         target: screen.controller
@@ -82,7 +86,7 @@ Item {
 
             delegate: Item {
                 width: ListView.view.width
-                height: Theme.touchTarget + Theme.spacingXS
+                height: Theme.touchTarget + Theme.spacingXs
 
                 Rectangle {
                     anchors.fill: parent
@@ -90,13 +94,13 @@ Item {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: Theme.spacingXS
+                        anchors.margins: Theme.spacingXs
                         spacing: Theme.spacingM
 
                         ColumnLayout {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            spacing: Theme.spacingXS
+                            spacing: Theme.spacingXs
 
                             Label {
                                 text: model.name
@@ -118,13 +122,24 @@ Item {
                             text: model.amountFormatted
                             font.weight: Font.DemiBold
                         }
-                    }
-                }
 
-                MouseArea {
-                    anchors.fill: parent
-                    onClicked: {
-                        // ponytail: bill detail/edit would open a sheet here
+                        // Logs an expense for this bill and advances its next
+                        // due date (per recurrence) via the controller.
+                        Button {
+                            flat: true
+                            text: qsTr("Paid")
+                            implicitHeight: Theme.touchTarget
+                            Material.foreground: Theme.accent
+                            onClicked: screen.controller.markPaid(
+                                model.billId, model.amountFormatted,
+                                new Date(), model.name)
+                        }
+                    }
+
+                    // Tap anywhere else on the row to edit; the Paid button
+                    // above grabs its own taps so it won't trigger this.
+                    TapHandler {
+                        onTapped: screen.editRequested(model.billId)
                     }
                 }
             }

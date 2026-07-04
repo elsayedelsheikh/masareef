@@ -22,10 +22,10 @@ Drawer {
     function save() {
         if (!canSave || !controller || billId <= 0)
             return
-        const recurrences = [Recurrence.Monthly, Recurrence.Quarterly, Recurrence.Yearly]
+        // selectedRecurrence is the combo index, matching the Recurrence enum
+        // order (Monthly=0, Quarterly=1, Yearly=2); QML marshals the int.
         if (controller.update(billId, selectedCategoryId, amountText, nameText,
-                              nextDueDate, recurrences[selectedRecurrence],
-                              notesText))
+                              nextDueDate, selectedRecurrence, notesText))
             close()
     }
 
@@ -99,7 +99,6 @@ Drawer {
         DateField {
             id: dateField
             Layout.fillWidth: true
-            label: qsTr("Next due")
         }
 
         ComboBox {

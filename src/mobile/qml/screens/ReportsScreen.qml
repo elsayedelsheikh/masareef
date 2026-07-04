@@ -115,7 +115,7 @@ Item {
 
             Column {
                 width: parent.width
-                spacing: Theme.spacingXS
+                spacing: Theme.spacingXs
 
                 Repeater {
                     model: screen.model.categoryTotals(
@@ -124,7 +124,7 @@ Item {
 
                     Item {
                         width: parent.width
-                        height: Theme.spacingL + Theme.spacingXS
+                        height: Theme.spacingL + Theme.spacingXs
 
                         RowLayout {
                             anchors.fill: parent

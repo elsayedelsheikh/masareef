@@ -24,6 +24,12 @@ ApplicationWindow {
         } else if (editSheet.opened) {
             editSheet.close()
             close.accepted = false
+        } else if (addBillSheet.opened) {
+            addBillSheet.close()
+            close.accepted = false
+        } else if (editBillSheet.opened) {
+            editBillSheet.close()
+            close.accepted = false
         } else if (stack.depth > 1) {
             stack.pop()
             close.accepted = false
@@ -103,6 +109,16 @@ ApplicationWindow {
         controller: expenseController
     }
 
+    AddBillSheet {
+        id: addBillSheet
+        controller: billController
+    }
+
+    EditBillSheet {
+        id: editBillSheet
+        controller: billController
+    }
+
     StackView {
         id: stack
         anchors.fill: parent
@@ -137,6 +153,10 @@ ApplicationWindow {
                 BillsScreen {
                     controller: billController
                     model: billsModel
+                    onEditRequested: (billId) => {
+                        editBillSheet.billId = billId
+                        editBillSheet.open()
+                    }
                 }
                 BudgetsScreen {
                     budgets: budgetsModel
@@ -158,7 +178,8 @@ ApplicationWindow {
                     bottom: parent.bottom
                     margins: Theme.spacingL
                 }
-                visible: navBar.currentIndex <= 1
+                // Home/Expenses add an expense; the Bills tab adds a bill.
+                visible: navBar.currentIndex <= 2
                 width: 60
                 height: 60
                 icon.source: "icons/plus.svg"
@@ -166,7 +187,7 @@ ApplicationWindow {
                 icon.height: 26
                 Material.background: Theme.accent
                 Material.foreground: "#ffffff"
-                onClicked: addSheet.open()
+                onClicked: navBar.currentIndex === 2 ? addBillSheet.open() : addSheet.open()
             }
         }
     }
