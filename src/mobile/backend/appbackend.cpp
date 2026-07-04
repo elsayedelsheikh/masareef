@@ -124,7 +124,8 @@ bool AppBackend::backupNow()
     // ponytail: backing up to standard documents folder; upgrade to file picker if needed
     const QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     const QString destFile = QDir(docsPath).filePath(
-        QStringLiteral("masareef-backup-%1.db").arg(QDateTime::currentDateTime().toString(Qt::ISODate)));
+        QStringLiteral("masareef-backup-%1.db")
+            .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"))));
     return static_cast<bool>(BackupManager::backupTo(destFile));
 }
 
