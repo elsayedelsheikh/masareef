@@ -26,8 +26,7 @@ void TestDatabaseManager::initialize_createsSchemaAndSeeds()
     QVERIFY(query.next());
     QVERIFY(query.value(0).toInt() >= 1);
 
-    QVERIFY(query.exec(QStringLiteral(
-        "SELECT name FROM categories WHERE type = 'system' ORDER BY name")));
+    QVERIFY(query.exec(QStringLiteral("SELECT name FROM categories ORDER BY name")));
     QStringList names;
     while (query.next())
         names << query.value(0).toString();
@@ -37,6 +36,12 @@ void TestDatabaseManager::initialize_createsSchemaAndSeeds()
     // Every seeded category carries a color for the charts
     QVERIFY(query.exec(QStringLiteral(
         "SELECT COUNT(*) FROM categories WHERE color IS NULL OR color = ''")));
+    QVERIFY(query.next());
+    QCOMPARE(query.value(0).toInt(), 0);
+
+    // No category is undeletable by type anymore — all seeded rows are 'user'
+    QVERIFY(query.exec(
+        QStringLiteral("SELECT COUNT(*) FROM categories WHERE type != 'user'")));
     QVERIFY(query.next());
     QCOMPARE(query.value(0).toInt(), 0);
 }

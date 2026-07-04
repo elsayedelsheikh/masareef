@@ -35,6 +35,12 @@ public:
     {
         return TestUtils::countRows(QStringLiteral("expenses"));
     }
+
+    Q_INVOKABLE int expenseCategoryId(int expenseId)
+    {
+        const Result<Expense> expense = ExpenseRepository::fetch(expenseId);
+        return expense ? expense->categoryId : -1;
+    }
 };
 
 class Setup : public QObject {

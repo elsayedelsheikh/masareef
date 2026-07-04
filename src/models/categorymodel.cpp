@@ -37,9 +37,6 @@ Category CategoryModel::categoryAt(int row) const
     Category cat;
     cat.id = QSqlTableModel::data(index(row, TcId)).toInt();
     cat.name = QSqlTableModel::data(index(row, TcName)).toString();
-    cat.type = QSqlTableModel::data(index(row, TcType)).toString() == QLatin1String("system")
-        ? CategoryType::System
-        : CategoryType::User;
     cat.color = QSqlTableModel::data(index(row, TcColor)).toString();
     return cat;
 }

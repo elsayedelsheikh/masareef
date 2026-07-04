@@ -68,9 +68,8 @@ void ManageCategoriesDialog::updateButtonStates()
 {
     const int row = selectedRow();
     const bool hasSelection = row >= 0;
-    const bool isSystem = hasSelection && m_model->categoryAt(row).isSystem();
-    m_renameButton->setEnabled(hasSelection && !isSystem);
-    m_deleteButton->setEnabled(hasSelection && !isSystem);
+    m_renameButton->setEnabled(hasSelection);
+    m_deleteButton->setEnabled(hasSelection && m_model->rowCount() > 1);
     m_colorButton->setEnabled(hasSelection);
 }
 
@@ -131,14 +130,38 @@ void ManageCategoriesDialog::deleteCategory()
     if (row < 0)
         return;
     const Category cat = m_model->categoryAt(row);
-    if (QMessageBox::question(this, tr("Delete Category"),
-                              tr("Delete the category \"%1\"?").arg(cat.name))
-        != QMessageBox::Yes)
-        return;
 
-    if (auto res = CategoryRepository::remove(cat.id); !res) {
-        QMessageBox::warning(this, tr("Delete Category"), res.error().message);
+    if (!CategoryRepository::isInUse(cat.id)) {
+        if (QMessageBox::question(this, tr("Delete Category"),
+                                  tr("Delete the category \"%1\"?").arg(cat.name))
+            != QMessageBox::Yes)
+            return;
+        if (auto res = CategoryRepository::remove(cat.id); !res)
+            QMessageBox::warning(this, tr("Delete Category"), res.error().message);
+        m_model->reload();
         return;
     }
+
+    QStringList otherNames;
+    QList<int> otherIds;
+    for (const Category& other : CategoryRepository::all()) {
+        if (other.id == cat.id)
+            continue;
+        otherNames << other.name;
+        otherIds << other.id;
+    }
+
+    bool accepted = false;
+    const QString chosen = QInputDialog::getItem(
+        this, tr("Delete Category"),
+        tr("\"%1\" is used by existing expenses or recurring bills.\n"
+           "Move them to:").arg(cat.name),
+        otherNames, 0, false, &accepted);
+    if (!accepted)
+        return;
+
+    const int targetId = otherIds.at(otherNames.indexOf(chosen));
+    if (auto res = CategoryRepository::removeAndReassign(cat.id, targetId); !res)
+        QMessageBox::warning(this, tr("Delete Category"), res.error().message);
     m_model->reload();
 }
