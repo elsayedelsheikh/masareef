@@ -37,6 +37,8 @@ public:
                             const QString& description, QDate date,
                             const QString& notes);
     Q_INVOKABLE bool remove(int id);
+    // Multi-select delete: emits expenseRemoved for each id on success.
+    Q_INVOKABLE bool removeMany(const QList<int>& ids);
     // Undo of a delete: re-adds from model role data (minor units, no text
     // parsing). Returns the new id, or 0 with lastError set.
     Q_INVOKABLE int restore(int categoryId, qint64 amountMinor,

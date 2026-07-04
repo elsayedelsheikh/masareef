@@ -93,6 +93,18 @@ bool ExpenseController::remove(int id)
     return true;
 }
 
+bool ExpenseController::removeMany(const QList<int>& ids)
+{
+    if (const auto removed = ExpenseRepository::removeMany(ids); !removed) {
+        setLastError(removed.error().message);
+        return false;
+    }
+    setLastError({});
+    for (int id : ids)
+        emit expenseRemoved(id);
+    return true;
+}
+
 int ExpenseController::restore(int categoryId, qint64 amountMinor,
                                const QString& description, QDate date,
                                const QString& notes)

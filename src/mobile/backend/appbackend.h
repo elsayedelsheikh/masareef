@@ -44,9 +44,17 @@ public:
     // -1 when the text is not a valid non-negative amount
     Q_INVOKABLE qint64 parseMoney(const QString& text) const;
 
+    // Backup and restore. backupNow() closes the DB, copies it, reopens.
+    // restore() validates, backs up current DB, replaces with the source,
+    // reopens, and signals models to refresh.
+    Q_INVOKABLE bool backupNow();
+    Q_INVOKABLE QStringList backups() const;
+    Q_INVOKABLE bool restore(const QString& path);
+
 signals:
     void currencyCodeChanged();
     void languageChanged();
+    void modelsRefreshNeeded();
 
 private:
     void applyLanguage();

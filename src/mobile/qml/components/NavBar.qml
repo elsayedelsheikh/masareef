@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls.Material
 import Masareef
 
-// Bottom navigation: Home, Expenses, Budgets, Settings.
+// Bottom navigation: Home, Expenses, Bills, Budgets, Settings.
 TabBar {
     id: bar
 
@@ -24,6 +24,10 @@ TabBar {
     NavButton {
         text: qsTr("Expenses")
         icon.source: "../icons/receipt.svg"
+    }
+    NavButton {
+        text: qsTr("Bills")
+        icon.source: "../icons/tag.svg"
     }
     NavButton {
         text: qsTr("Budgets")

@@ -23,12 +23,16 @@ qt_add_qml_module(masareef_quick
         qml/components/NavBar.qml
         qml/components/Snackbar.qml
         qml/components/StatCard.qml
+        qml/sheets/AddBillSheet.qml
         qml/sheets/AddExpenseSheet.qml
+        qml/sheets/EditBillSheet.qml
         qml/sheets/EditExpenseSheet.qml
+        qml/screens/BillsScreen.qml
         qml/screens/BudgetsScreen.qml
         qml/screens/CategoryManagerScreen.qml
         qml/screens/ExpensesScreen.qml
         qml/screens/HomeScreen.qml
+        qml/screens/ReportsScreen.qml
         qml/screens/SettingsScreen.qml
     RESOURCES
         qml/icons/calendar.svg
@@ -49,6 +53,10 @@ qt_add_qml_module(masareef_quick
     SOURCES
         backend/appbackend.cpp
         backend/appbackend.h
+        backend/billcontroller.cpp
+        backend/billcontroller.h
+        backend/billlistmodel.cpp
+        backend/billlistmodel.h
         backend/budgetviewmodel.cpp
         backend/budgetviewmodel.h
         backend/categorylistmodel.cpp
@@ -59,6 +67,8 @@ qt_add_qml_module(masareef_quick
         backend/expensecontroller.h
         backend/expenselistmodel.cpp
         backend/expenselistmodel.h
+        backend/reportsviewmodel.cpp
+        backend/reportsviewmodel.h
         backend/themecontroller.cpp
         backend/themecontroller.h
 )
