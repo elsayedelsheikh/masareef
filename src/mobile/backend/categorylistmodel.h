@@ -7,8 +7,8 @@
 
 // QML-facing category list with the CRUD operations the category manager
 // screen needs. Mutations return bool and leave the reason in lastError;
-// the business rules themselves (unique names, undeletable system/in-use
-// categories) live in CategoryRepository.
+// the business rules themselves (unique names, undeletable in-use/last
+// remaining categories) live in CategoryRepository.
 class CategoryListModel : public QAbstractListModel {
     Q_OBJECT
     QML_ELEMENT
@@ -21,7 +21,6 @@ public:
         CategoryIdRole = Qt::UserRole + 1,
         NameRole,
         ColorRole,
-        IsSystemRole,
         InUseRole,
     };
     Q_ENUM(Role)
@@ -40,6 +39,7 @@ public:
     Q_INVOKABLE bool rename(int id, const QString& newName);
     Q_INVOKABLE bool setColor(int id, const QString& color);
     Q_INVOKABLE bool remove(int id);
+    Q_INVOKABLE bool removeAndReassign(int id, int targetId);
     Q_INVOKABLE QString suggestedColor() const;
     // The categorical palette slots (stored hex values) for the color picker
     Q_INVOKABLE QStringList paletteColors() const;

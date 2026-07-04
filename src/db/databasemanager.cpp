@@ -9,7 +9,7 @@
 #include <QVariant>
 
 namespace {
-constexpr int kSchemaVersion = 2;
+constexpr int kSchemaVersion = 3;
 
 Result<void> execOrFail(QSqlQuery& query, const QString& sql)
 {
@@ -63,7 +63,7 @@ const QStringList kV2Statements = {
         "CREATE UNIQUE INDEX idx_budgets_category ON budgets(COALESCE(category_id, -1))"),
 };
 
-Result<void> seedSystemCategories(QSqlQuery& query)
+Result<void> seedDefaultCategories(QSqlQuery& query)
 {
     const struct { const char* name; const char* color; } seeds[] = {
         { "Bills", Palette::kCategorical[0] },
@@ -72,7 +72,7 @@ Result<void> seedSystemCategories(QSqlQuery& query)
     };
     for (const auto& seed : seeds) {
         query.prepare(QStringLiteral(
-            "INSERT INTO categories (name, type, color) VALUES (?, 'system', ?)"));
+            "INSERT INTO categories (name, type, color) VALUES (?, 'user', ?)"));
         query.addBindValue(QString::fromUtf8(seed.name));
         query.addBindValue(QString::fromUtf8(seed.color));
         if (!query.exec())
@@ -80,6 +80,15 @@ Result<void> seedSystemCategories(QSqlQuery& query)
     }
     return {};
 }
+
+// Version 3: categories are no longer split into system/user — every
+// category (seeded or added) is deletable, with reassignment for in-use
+// ones. The column and its CHECK stay for schema stability; existing
+// 'system' rows just become 'user'. The real v2->v3 upgrade path is
+// covered by upgrade_v2ToV3_migratesSystemCategories in tst_databasemanager.
+const QStringList kV3Statements = {
+    QStringLiteral("UPDATE categories SET type = 'user' WHERE type = 'system'"),
+};
 } // namespace
 
 DatabaseManager& DatabaseManager::instance()
@@ -157,11 +166,16 @@ Result<void> DatabaseManager::migrate(QSqlDatabase& db)
             for (const QString& sql : kV1Statements)
                 if (auto res = execOrFail(query, sql); !res)
                     return res;
-            if (auto res = seedSystemCategories(query); !res)
+            if (auto res = seedDefaultCategories(query); !res)
                 return res;
         }
         if (version < 2) {
             for (const QString& sql : kV2Statements)
+                if (auto res = execOrFail(query, sql); !res)
+                    return res;
+        }
+        if (version < 3) {
+            for (const QString& sql : kV3Statements)
                 if (auto res = execOrFail(query, sql); !res)
                     return res;
         }

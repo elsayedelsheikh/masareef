@@ -3,14 +3,23 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import Masareef
 
-// Category management: add, rename, recolor and delete (business rules —
-// system/in-use categories are undeletable — come from the model).
+// Category management: add, rename, recolor and delete. Deleting an
+// in-use category opens a reassign dialog instead of failing outright.
 Page {
     id: screen
 
     property CategoryListModel categories
+    property alias reassignDialog: reassignDialog
+    property alias reassignPicker: picker
 
     signal closed()
+
+    function requestDelete(categoryId, name, inUse) {
+        if (inUse)
+            reassignDialog.openFor(categoryId, name)
+        else if (!screen.categories.remove(categoryId))
+            snackbar.show(screen.categories.lastError)
+    }
 
     background: Rectangle { color: Theme.surface }
 
@@ -56,8 +65,7 @@ Page {
             width: ListView.view.width
             implicitHeight: Theme.touchTarget + 8
 
-            onClicked: editDialog.openForEdit(model.categoryId, model.name,
-                                              model.isSystem)
+            onClicked: editDialog.openForEdit(model.categoryId, model.name)
 
             contentItem: RowLayout {
                 spacing: Theme.spacingM
@@ -73,20 +81,12 @@ Page {
                     color: Theme.primaryInk
                     elide: Text.ElideRight
                 }
-                Text {
-                    visible: row.model.isSystem
-                    text: qsTr("Built-in")
-                    font.pixelSize: Theme.fontSizeCaption
-                    color: Theme.mutedInk
-                }
                 ToolButton {
-                    visible: !row.model.isSystem && !row.model.inUse
+                    visible: screen.categories.count > 1
                     icon.source: "../icons/trash.svg"
                     icon.color: Theme.critical
-                    onClicked: {
-                        if (!screen.categories.remove(row.model.categoryId))
-                            snackbar.show(screen.categories.lastError)
-                    }
+                    onClicked: screen.requestDelete(row.model.categoryId, row.model.name,
+                                                    row.model.inUse)
                 }
             }
         }
@@ -96,19 +96,16 @@ Page {
         id: editDialog
 
         property int categoryId: 0 // 0 = adding
-        property bool systemCategory: false
 
         function openForAdd() {
             categoryId = 0
-            systemCategory = false
             nameField.text = ""
             colorRow.selectedColor = screen.categories.suggestedColor()
             open()
         }
 
-        function openForEdit(id, name, isSystem) {
+        function openForEdit(id, name) {
             categoryId = id
-            systemCategory = isSystem
             nameField.text = name
             colorRow.selectedColor = ""
             open()
@@ -126,8 +123,7 @@ Page {
             if (categoryId === 0) {
                 ok = screen.categories.add(nameField.text, colorRow.selectedColor)
             } else {
-                if (!systemCategory)
-                    ok = screen.categories.rename(categoryId, nameField.text)
+                ok = screen.categories.rename(categoryId, nameField.text)
                 if (ok && colorRow.selectedColor !== "")
                     ok = screen.categories.setColor(categoryId,
                                                     colorRow.selectedColor)
@@ -142,7 +138,6 @@ Page {
             TextField {
                 id: nameField
                 Layout.fillWidth: true
-                enabled: !editDialog.systemCategory
                 placeholderText: qsTr("Name")
                 implicitHeight: Theme.touchTarget
             }
@@ -174,6 +169,60 @@ Page {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Dialog {
+        id: reassignDialog
+
+        property int categoryId: 0
+        property string categoryName: ""
+
+        function openFor(id, name) {
+            categoryId = id
+            categoryName = name
+            picker.selectedCategoryId = -1
+            open()
+        }
+
+        parent: Overlay.overlay
+        anchors.centerIn: parent
+        width: Math.min(360, parent ? parent.width - 2 * Theme.spacingM : 360)
+        title: qsTr("Move expenses from \"%1\"").arg(reassignDialog.categoryName)
+        modal: true
+        standardButtons: Dialog.Save | Dialog.Cancel
+
+        // Save stays disabled until a destination is chosen, so the user can't
+        // trigger a confusing "Category not found." error by saving nothing.
+        onOpened: {
+            const save = standardButton(Dialog.Save)
+            if (save)
+                save.enabled = Qt.binding(() => picker.selectedCategoryId >= 0)
+        }
+
+        onAccepted: {
+            if (!screen.categories.removeAndReassign(reassignDialog.categoryId,
+                                                      picker.selectedCategoryId))
+                snackbar.show(screen.categories.lastError)
+        }
+
+        contentItem: ColumnLayout {
+            spacing: Theme.spacingM
+
+            Text {
+                Layout.fillWidth: true
+                text: qsTr("This category is used by existing expenses or recurring bills. Choose where to move them:")
+                wrapMode: Text.WordWrap
+                color: Theme.mutedInk
+                font.pixelSize: Theme.fontSizeBody
+            }
+
+            CategoryPicker {
+                id: picker
+                Layout.fillWidth: true
+                model: screen.categories
+                excludeCategoryId: reassignDialog.categoryId
             }
         }
     }

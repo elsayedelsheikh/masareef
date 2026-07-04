@@ -5,20 +5,16 @@
 #include <QList>
 #include <QString>
 
-enum class CategoryType { System, User };
-
 struct Category {
     int id = 0;
     QString name;
-    CategoryType type = CategoryType::User;
     QString color;
-
-    [[nodiscard]] bool isSystem() const { return type == CategoryType::System; }
 };
 
-// Storage access for `categories`, enforcing the business rules: system
-// categories and categories still referenced by expenses or recurring
-// bills are undeletable.
+// Storage access for `categories`, enforcing the business rules: a
+// category still referenced by expenses or recurring bills is undeletable
+// via remove() (use removeAndReassign() instead), and the last remaining
+// category can never be deleted (expenses require one).
 namespace CategoryRepository {
 
 [[nodiscard]] QList<Category> all();
@@ -26,6 +22,10 @@ namespace CategoryRepository {
 [[nodiscard]] Result<void> rename(int id, const QString& newName);
 [[nodiscard]] Result<void> setColor(int id, const QString& color);
 [[nodiscard]] Result<void> remove(int id);
+// Moves the category's expenses and recurring bills to targetId, drops its
+// budget row, then deletes it — atomically. Rejects id == targetId or a
+// missing target.
+[[nodiscard]] Result<void> removeAndReassign(int id, int targetId);
 [[nodiscard]] bool isInUse(int id);
 // First palette slot not already taken by an existing category
 [[nodiscard]] QString suggestedColor();

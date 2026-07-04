@@ -26,8 +26,6 @@ QVariant CategoryListModel::data(const QModelIndex& index, int role) const
         return row.category.name;
     case ColorRole:
         return Palette::series(row.category.color);
-    case IsSystemRole:
-        return row.category.isSystem();
     case InUseRole:
         return row.inUse;
     default:
@@ -41,7 +39,6 @@ QHash<int, QByteArray> CategoryListModel::roleNames() const
         { CategoryIdRole, "categoryId" },
         { NameRole, "name" },
         { ColorRole, "color" },
-        { IsSystemRole, "isSystem" },
         { InUseRole, "inUse" },
     };
 }
@@ -88,6 +85,11 @@ bool CategoryListModel::setColor(int id, const QString& color)
 bool CategoryListModel::remove(int id)
 {
     return applyResult(CategoryRepository::remove(id));
+}
+
+bool CategoryListModel::removeAndReassign(int id, int targetId)
+{
+    return applyResult(CategoryRepository::removeAndReassign(id, targetId));
 }
 
 QString CategoryListModel::suggestedColor() const

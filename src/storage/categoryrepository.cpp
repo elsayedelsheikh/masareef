@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QSet>
+#include <QSqlDatabase>
 #include <QSqlError>
 #include <QSqlQuery>
 #include <QVariant>
@@ -13,6 +14,14 @@ QString tr(const char* text)
 {
     return QCoreApplication::translate("CategoryRepository", text);
 }
+
+int categoryCount()
+{
+    QSqlQuery query;
+    if (!query.exec(QStringLiteral("SELECT COUNT(*) FROM categories")) || !query.next())
+        return 0;
+    return query.value(0).toInt();
+}
 } // namespace
 
 namespace CategoryRepository {
@@ -21,17 +30,13 @@ QList<Category> all()
 {
     QList<Category> list;
     QSqlQuery query;
-    if (!query.exec(QStringLiteral(
-            "SELECT id, name, type, color FROM categories ORDER BY name")))
+    if (!query.exec(QStringLiteral("SELECT id, name, color FROM categories ORDER BY name")))
         return list;
     while (query.next()) {
         Category cat;
         cat.id = query.value(0).toInt();
         cat.name = query.value(1).toString();
-        cat.type = query.value(2).toString() == QLatin1String("system")
-            ? CategoryType::System
-            : CategoryType::User;
-        cat.color = query.value(3).toString();
+        cat.color = query.value(2).toString();
         list.append(cat);
     }
     return list;
@@ -96,15 +101,14 @@ bool isInUse(int id)
 Result<void> remove(int id)
 {
     QSqlQuery query;
-    query.prepare(QStringLiteral("SELECT type, name FROM categories WHERE id = ?"));
+    query.prepare(QStringLiteral("SELECT name FROM categories WHERE id = ?"));
     query.addBindValue(id);
     if (!query.exec() || !query.next())
         return fail(tr("Category not found."));
-    const QString type = query.value(0).toString();
-    const QString name = query.value(1).toString();
+    const QString name = query.value(0).toString();
 
-    if (type == QLatin1String("system"))
-        return fail(tr("\"%1\" is a built-in category and cannot be deleted.").arg(name));
+    if (categoryCount() <= 1)
+        return fail(tr("At least one category must remain."));
     if (isInUse(id))
         return fail(tr("\"%1\" is used by existing expenses or recurring bills. "
                        "Reassign or delete those entries first.").arg(name));
@@ -113,6 +117,63 @@ Result<void> remove(int id)
     query.addBindValue(id);
     if (!query.exec())
         return fail(query.lastError().text());
+    return {};
+}
+
+Result<void> removeAndReassign(int id, int targetId)
+{
+    if (id == targetId)
+        return fail(tr("Cannot reassign a category to itself."));
+
+    QSqlQuery check;
+    check.prepare(
+        QStringLiteral("SELECT COUNT(*) FROM categories WHERE id IN (?, ?)"));
+    check.addBindValue(id);
+    check.addBindValue(targetId);
+    if (!check.exec() || !check.next() || check.value(0).toInt() != 2)
+        return fail(tr("Category not found."));
+
+    QSqlDatabase db = QSqlDatabase::database();
+    if (!db.transaction())
+        return fail(db.lastError().text());
+
+    const auto step = [&]() -> Result<void> {
+        QSqlQuery query;
+        query.prepare(QStringLiteral(
+            "UPDATE expenses SET category_id = ? WHERE category_id = ?"));
+        query.addBindValue(targetId);
+        query.addBindValue(id);
+        if (!query.exec())
+            return fail(query.lastError().text());
+
+        query.prepare(QStringLiteral(
+            "UPDATE recurring_bills SET category_id = ? WHERE category_id = ?"));
+        query.addBindValue(targetId);
+        query.addBindValue(id);
+        if (!query.exec())
+            return fail(query.lastError().text());
+
+        query.prepare(QStringLiteral("DELETE FROM budgets WHERE category_id = ?"));
+        query.addBindValue(id);
+        if (!query.exec())
+            return fail(query.lastError().text());
+
+        query.prepare(QStringLiteral("DELETE FROM categories WHERE id = ?"));
+        query.addBindValue(id);
+        if (!query.exec())
+            return fail(query.lastError().text());
+        return {};
+    }();
+
+    if (!step) {
+        db.rollback();
+        return step;
+    }
+    if (!db.commit()) {
+        const QString message = db.lastError().text();
+        db.rollback();
+        return fail(message);
+    }
     return {};
 }
 

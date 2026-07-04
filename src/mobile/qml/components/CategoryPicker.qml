@@ -10,6 +10,7 @@ Flow {
     property var model // CategoryListModel
     property int selectedCategoryId: -1
     property bool allowAll: false
+    property int excludeCategoryId: -1
 
     spacing: Theme.spacingS
 
@@ -73,6 +74,7 @@ Flow {
             label: model.name
             showDot: true
             dotColor: model.color
+            visible: model.categoryId !== picker.excludeCategoryId
         }
     }
 }

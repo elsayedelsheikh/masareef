@@ -22,8 +22,9 @@ private slots:
     void rename_emptyNameFailsWithError();
     void setColor_updatesRow();
     void remove_deletesUserCategory();
-    void remove_systemCategoryFailsWithError();
+    void remove_lastCategoryFailsWithError();
     void remove_inUseCategoryFailsWithError();
+    void removeAndReassign_movesExpensesAndDeletesCategory();
     void inUse_reflectsExpenses();
     void suggestedColor_returnsFirstFreeSlot();
     void paletteColors_listsCategoricalSlots();
@@ -68,7 +69,7 @@ void TestCategoryListModel::roleNames_coverAllRoles()
     CategoryListModel model;
     const QHash<int, QByteArray> roles = model.roleNames();
     const QList<QByteArray> expected = {
-        "categoryId", "name", "color", "isSystem", "inUse",
+        "categoryId", "name", "color", "inUse",
     };
     for (const QByteArray& role : expected)
         QVERIFY2(roles.values().contains(role), role.constData());
@@ -83,7 +84,6 @@ void TestCategoryListModel::rows_exposeCategoryRoles()
     const QModelIndex index = model.index(row, 0);
     QCOMPARE(model.data(index, CategoryListModel::CategoryIdRole).toInt(),
              TestUtils::categoryId(QStringLiteral("Bills")));
-    QCOMPARE(model.data(index, CategoryListModel::IsSystemRole).toBool(), true);
     QCOMPARE(model.data(index, CategoryListModel::InUseRole).toBool(), false);
     QCOMPARE(model.data(index, CategoryListModel::ColorRole).value<QColor>(),
              QColor(QStringLiteral("#2a78d6")));
@@ -97,10 +97,7 @@ void TestCategoryListModel::add_appendsCategory()
     QVERIFY(model.add(QStringLiteral("Coffee"), QStringLiteral("#008300")));
     QCOMPARE(model.rowCount(), before + 1);
 
-    const int row = rowOf(model, QStringLiteral("Coffee"));
-    QVERIFY(row >= 0);
-    QCOMPARE(model.data(model.index(row, 0), CategoryListModel::IsSystemRole).toBool(),
-             false);
+    QVERIFY(rowOf(model, QStringLiteral("Coffee")) >= 0);
 }
 
 void TestCategoryListModel::add_duplicateNameFailsWithError()
@@ -166,14 +163,18 @@ void TestCategoryListModel::remove_deletesUserCategory()
     QCOMPARE(rowOf(model, QStringLiteral("Coffee")), -1);
 }
 
-void TestCategoryListModel::remove_systemCategoryFailsWithError()
+void TestCategoryListModel::remove_lastCategoryFailsWithError()
 {
     CategoryListModel model;
-    const int before = model.rowCount();
+    for (const Category& cat : CategoryRepository::all()) {
+        if (cat.name != QStringLiteral("Bills"))
+            QVERIFY(model.remove(cat.id));
+    }
+    QCOMPARE(model.rowCount(), 1);
 
     QVERIFY(!model.remove(TestUtils::categoryId(QStringLiteral("Bills"))));
     QVERIFY(!model.lastError().isEmpty());
-    QCOMPARE(model.rowCount(), before);
+    QCOMPARE(model.rowCount(), 1);
 }
 
 void TestCategoryListModel::remove_inUseCategoryFailsWithError()
@@ -192,6 +193,24 @@ void TestCategoryListModel::remove_inUseCategoryFailsWithError()
     QVERIFY(!model.remove(id));
     QVERIFY(!model.lastError().isEmpty());
     QVERIFY(rowOf(model, QStringLiteral("Coffee")) >= 0);
+}
+
+void TestCategoryListModel::removeAndReassign_movesExpensesAndDeletesCategory()
+{
+    CategoryListModel model;
+    QVERIFY(model.add(QStringLiteral("Coffee"), QStringLiteral("#008300")));
+    const int sourceId = model.data(model.index(rowOf(model, QStringLiteral("Coffee")), 0),
+                                    CategoryListModel::CategoryIdRole)
+                             .toInt();
+    const int targetId = TestUtils::categoryId(QStringLiteral("Bills"));
+    VERIFY_OK(ExpenseRepository::add({ .categoryId = sourceId,
+                                       .amount = Money::fromMinorUnits(500),
+                                       .description = QStringLiteral("Latte"),
+                                       .date = QDate(2026, 6, 1) }));
+    model.refresh();
+
+    QVERIFY(model.removeAndReassign(sourceId, targetId));
+    QCOMPARE(rowOf(model, QStringLiteral("Coffee")), -1);
 }
 
 void TestCategoryListModel::inUse_reflectsExpenses()
