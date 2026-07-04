@@ -47,25 +47,32 @@ Item {
             editRequested(id)
     }
 
+    // Reassign (not mutate) so QML re-evaluates bindings on selectedRows — a
+    // mutated Set fires no change signal, so the Delete button would never show.
     function toggleSelect(row) {
-        if (selectedRows.has(row))
-            selectedRows.delete(row)
-        else
-            selectedRows.add(row)
-        listView.forceLayout() // Refresh delegate states
+        const next = new Set(selectedRows)
+        next.has(row) ? next.delete(row) : next.add(row)
+        selectedRows = next
     }
 
     function removeSelected() {
         const ids = Array.from(selectedRows).map(row => model.expenseIdAt(row))
-        if (ids.length > 0 && controller && controller.removeMany(ids)) {
-            selectedRows.clear()
-            listView.forceLayout()
-        }
+        if (ids.length > 0 && controller && controller.removeMany(ids))
+            selectedRows = new Set()
     }
 
     function applyDateFilter() {
         screen.model.fromDate = filterFromDate
         screen.model.toDate = filterToDate
+    }
+
+    // The repository only date-filters when BOTH bounds are valid, so clearing
+    // means making them invalid — not epoch, which would filter to 1970.
+    function clearDateFilter() {
+        filterFromDate = undefined
+        filterToDate = undefined
+        screen.model.fromDate = undefined
+        screen.model.toDate = undefined
     }
 
     readonly property bool undoVisible: snackbar.visible
@@ -174,11 +181,7 @@ Item {
                 flat: true
                 text: qsTr("Clear dates")
                 implicitHeight: Theme.touchTarget
-                onClicked: {
-                    fromDateField.value = new Date(0)
-                    toDateField.value = new Date(0)
-                    screen.applyDateFilter()
-                }
+                onClicked: screen.clearDateFilter()
             }
         }
 

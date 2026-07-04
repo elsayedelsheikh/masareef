@@ -51,6 +51,25 @@ ApplicationWindow {
     BudgetViewModel { id: budgetsModel }
     CategoryListModel { id: categoriesModel }
 
+    BillController {
+        id: billController
+        // Paying a bill logs an expense, so the expense-side views must refresh too.
+        onBillPaid: expenseController.refreshAll()
+    }
+    BillListModel { id: billsModel }
+
+    Connections {
+        target: AppBackend
+        // A restore swaps the database file out from under every model.
+        function onModelsRefreshNeeded() {
+            expensesModel.refresh()
+            dashboardModel.refresh()
+            budgetsModel.refresh()
+            categoriesModel.refresh()
+            billsModel.refresh()
+        }
+    }
+
     Connections {
         target: budgetsModel
         // Budget edits move the dashboard gauge
@@ -114,6 +133,10 @@ ApplicationWindow {
                     controller: expenseController
                     model: expensesModel
                     onEditRequested: (expenseId) => editSheet.openFor(expenseId)
+                }
+                BillsScreen {
+                    controller: billController
+                    model: billsModel
                 }
                 BudgetsScreen {
                     budgets: budgetsModel

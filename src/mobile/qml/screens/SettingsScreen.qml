@@ -20,8 +20,9 @@ Flickable {
         title: qsTr("Restore from backup?")
         standardButtons: Dialog.Ok | Dialog.Cancel
         onAccepted: {
+            // AppBackend.modelsRefreshNeeded is wired to refresh every model in Main.qml.
             if (AppBackend.restore(backupPath)) {
-                // ponytail: assuming modelsRefreshNeeded is connected at app level
+                backupRepeater.model = AppBackend.backups()
                 showMessage.text = qsTr("Backup restored successfully")
                 showMessage.open()
             } else {
@@ -142,10 +143,12 @@ Flickable {
             text: qsTr("Back up now")
             implicitHeight: Theme.touchTarget
             onClicked: {
-                if (AppBackend.backupNow())
+                if (AppBackend.backupNow()) {
+                    backupRepeater.model = AppBackend.backups()
                     showMessage.text = qsTr("Backup created successfully")
-                else
+                } else {
                     showMessage.text = qsTr("Backup failed")
+                }
                 showMessage.open()
             }
         }
