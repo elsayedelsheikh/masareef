@@ -25,6 +25,7 @@ private slots:
     void restore_reAddsRemovedExpense();
     void load_populatesEditProperties();
     void load_unknownIdFails();
+    void removeMany_deletesMultipleExpenses();
 
 private:
     int m_billsId = -1;
@@ -237,6 +238,32 @@ void TestExpenseController::load_unknownIdFails()
     ExpenseController controller;
     QVERIFY(!controller.load(999999));
     QVERIFY(!controller.lastError().isEmpty());
+}
+
+void TestExpenseController::removeMany_deletesMultipleExpenses()
+{
+    ExpenseController controller;
+    const int id1 = controller.add(m_billsId, QStringLiteral("10"),
+                                   QStringLiteral("Bill1"), QDate(2026, 6, 1),
+                                   QString());
+    const int id2 = controller.add(m_groceriesId, QStringLiteral("20"),
+                                   QStringLiteral("Groceries"), QDate(2026, 6, 2),
+                                   QString());
+    const int id3 = controller.add(m_billsId, QStringLiteral("30"),
+                                   QStringLiteral("Bill2"), QDate(2026, 6, 3),
+                                   QString());
+    QVERIFY(id1 > 0 && id2 > 0 && id3 > 0);
+    QCOMPARE(TestUtils::countRows(QStringLiteral("expenses")), 3);
+
+    QSignalSpy removedSpy(&controller, &ExpenseController::expenseRemoved);
+    QVERIFY(controller.removeMany(QList<int>{ id1, id3 }));
+    QCOMPARE(removedSpy.count(), 2);
+    QCOMPARE(TestUtils::countRows(QStringLiteral("expenses")), 1);
+
+    // Verify the remaining expense is correct
+    const Result<Expense> saved = ExpenseRepository::fetch(id2);
+    VERIFY_OK(saved);
+    QCOMPARE(saved->description, QStringLiteral("Groceries"));
 }
 
 QTEST_GUILESS_MAIN(TestExpenseController)

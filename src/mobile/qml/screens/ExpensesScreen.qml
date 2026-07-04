@@ -14,6 +14,11 @@ Item {
 
     signal editRequested(int expenseId)
 
+    property var selectedRows: new Set() // Multi-select tracking
+    property bool filterExpanded: false
+    property date filterFromDate
+    property date filterToDate
+
     // Deletes through the controller (so every view refreshes) and offers
     // undo via restore.
     function removeAt(row) {
@@ -42,6 +47,34 @@ Item {
             editRequested(id)
     }
 
+    // Reassign (not mutate) so QML re-evaluates bindings on selectedRows — a
+    // mutated Set fires no change signal, so the Delete button would never show.
+    function toggleSelect(row) {
+        const next = new Set(selectedRows)
+        next.has(row) ? next.delete(row) : next.add(row)
+        selectedRows = next
+    }
+
+    function removeSelected() {
+        const ids = Array.from(selectedRows).map(row => model.expenseIdAt(row))
+        if (ids.length > 0 && controller && controller.removeMany(ids))
+            selectedRows = new Set()
+    }
+
+    function applyDateFilter() {
+        screen.model.fromDate = filterFromDate
+        screen.model.toDate = filterToDate
+    }
+
+    // The repository only date-filters when BOTH bounds are valid, so clearing
+    // means making them invalid — not epoch, which would filter to 1970.
+    function clearDateFilter() {
+        filterFromDate = undefined
+        filterToDate = undefined
+        screen.model.fromDate = undefined
+        screen.model.toDate = undefined
+    }
+
     readonly property bool undoVisible: snackbar.visible
     property var _pendingUndo: null
 
@@ -57,6 +90,18 @@ Item {
 
     CategoryListModel {
         id: categoriesModel
+    }
+
+    Dialog {
+        id: deleteConfirmDialog
+        title: qsTr("Delete %n expense(s)?", "", selectedRows.size)
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: screen.removeSelected()
+
+        Text {
+            text: qsTr("This action cannot be undone.")
+            color: Material.foreground
+        }
     }
 
     Snackbar {
@@ -85,19 +130,88 @@ Item {
             onSelectedCategoryIdChanged: screen.model.categoryId = selectedCategoryId
         }
 
-        RowLayout {
+        // Collapsible date-range filter
+        Button {
             Layout.fillWidth: true
+            flat: true
+            text: filterExpanded ? qsTr("Hide date filter") : qsTr("Show date filter")
+            implicitHeight: Theme.touchTarget
+            onClicked: filterExpanded = !filterExpanded
+        }
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: filterExpanded
+            spacing: Theme.spacingS
 
             Text {
-                Layout.fillWidth: true
-                text: qsTr("Total: %1").arg(screen.model ? screen.model.totalFormatted : "")
-                font.pixelSize: Theme.fontSizeBody
-                color: Theme.secondaryInk
-            }
-            Text {
-                text: screen.model ? qsTr("%n expense(s)", "", screen.model.count) : ""
+                text: qsTr("From")
                 font.pixelSize: Theme.fontSizeCaption
                 color: Theme.mutedInk
+            }
+
+            DateField {
+                id: fromDateField
+                Layout.fillWidth: true
+                value: screen.filterFromDate
+                onValueChanged: {
+                    screen.filterFromDate = value
+                    screen.applyDateFilter()
+                }
+            }
+
+            Text {
+                text: qsTr("To")
+                font.pixelSize: Theme.fontSizeCaption
+                color: Theme.mutedInk
+            }
+
+            DateField {
+                id: toDateField
+                Layout.fillWidth: true
+                value: screen.filterToDate
+                onValueChanged: {
+                    screen.filterToDate = value
+                    screen.applyDateFilter()
+                }
+            }
+
+            Button {
+                Layout.fillWidth: true
+                flat: true
+                text: qsTr("Clear dates")
+                implicitHeight: Theme.touchTarget
+                onClicked: screen.clearDateFilter()
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: Theme.spacingM
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 0
+
+                Text {
+                    text: qsTr("Total: %1").arg(screen.model ? screen.model.totalFormatted : "")
+                    font.pixelSize: Theme.fontSizeBody
+                    color: Theme.secondaryInk
+                }
+                Text {
+                    text: screen.model ? qsTr("%n expense(s)", "", screen.model.count) : ""
+                    font.pixelSize: Theme.fontSizeCaption
+                    color: Theme.mutedInk
+                }
+            }
+
+            Button {
+                visible: selectedRows.size > 0
+                flat: true
+                text: qsTr("Delete")
+                implicitHeight: Theme.touchTarget
+                Material.foreground: Material.red
+                onClicked: deleteConfirmDialog.open()
             }
         }
 
@@ -125,8 +239,11 @@ Item {
             }
 
             delegate: ExpenseDelegate {
+                isSelected: screen.selectedRows.has(index)
+                selectionMode: screen.selectedRows.size > 0
                 onEditRequested: (expenseId) => screen.editRequested(expenseId)
                 onRemoveRequested: (row) => screen.removeAt(row)
+                onSelectionToggled: (index) => screen.toggleSelect(index)
             }
 
             EmptyState {

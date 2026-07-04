@@ -1,12 +1,16 @@
 #include "backend/appbackend.h"
 
 #include "utils/appconfig.h"
+#include "utils/backupmanager.h"
 #include "utils/currencyformatter.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
+#include <QDir>
 #include <QGuiApplication>
 #include <QLocale>
 #include <QQmlEngine>
+#include <QStandardPaths>
 
 // Keeps the Qt-internal layout-direction key in our catalog: lupdate would
 // otherwise mark it obsolete and lrelease would drop it from the .qm.
@@ -113,4 +117,36 @@ void AppBackend::applyLanguage()
         QGuiApplication::setLayoutDirection(wantArabic ? Qt::RightToLeft
                                                        : Qt::LeftToRight);
     }
+}
+
+bool AppBackend::backupNow()
+{
+    // ponytail: backing up to standard documents folder; upgrade to file picker if needed
+    const QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    const QString destFile = QDir(docsPath).filePath(
+        QStringLiteral("masareef-backup-%1.db")
+            .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"))));
+    return static_cast<bool>(BackupManager::backupTo(destFile));
+}
+
+QStringList AppBackend::backups() const
+{
+    // ponytail: list backups from documents folder; upgrade if a proper backup folder is added
+    const QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
+    QDir backupDir(docsPath);
+    QStringList filenames = backupDir.entryList(QStringList() << QStringLiteral("masareef-backup-*.db"),
+                                                QDir::Files, QDir::Time);
+    QStringList absolutePaths;
+    absolutePaths.reserve(filenames.size());
+    for (const QString& filename : filenames)
+        absolutePaths.append(backupDir.filePath(filename));
+    return absolutePaths;
+}
+
+bool AppBackend::restore(const QString& path)
+{
+    const bool ok = static_cast<bool>(BackupManager::restoreFrom(path));
+    if (ok)
+        emit modelsRefreshNeeded();
+    return ok;
 }

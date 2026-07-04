@@ -7,6 +7,9 @@ set(MASAREEF_MOBILE_TESTS
     budgetviewmodel
     appbackend
     themecontroller
+    reportsviewmodel
+    billcontroller
+    billlistmodel
 )
 
 find_package(Qt6 REQUIRED COMPONENTS QuickTest)

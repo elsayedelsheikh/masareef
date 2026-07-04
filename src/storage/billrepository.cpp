@@ -28,12 +28,13 @@ RecurringBill billFromQuery(const QSqlQuery& query)
     bill.active = query.value(6).toBool();
     bill.notes = query.value(7).toString();
     bill.categoryName = query.value(8).toString();
+    bill.categoryColor = query.value(9).toString();
     return bill;
 }
 
 const QString kSelectBill = QStringLiteral(
     "SELECT b.id, b.category_id, b.name, b.amount, b.recurrence, b.next_due_date, "
-    "b.is_active, b.notes, c.name "
+    "b.is_active, b.notes, c.name, c.color "
     "FROM recurring_bills b JOIN categories c ON c.id = b.category_id");
 
 } // namespace

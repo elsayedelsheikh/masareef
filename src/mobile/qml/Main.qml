@@ -24,6 +24,12 @@ ApplicationWindow {
         } else if (editSheet.opened) {
             editSheet.close()
             close.accepted = false
+        } else if (addBillSheet.opened) {
+            addBillSheet.close()
+            close.accepted = false
+        } else if (editBillSheet.opened) {
+            editBillSheet.close()
+            close.accepted = false
         } else if (stack.depth > 1) {
             stack.pop()
             close.accepted = false
@@ -50,6 +56,25 @@ ApplicationWindow {
     DashboardViewModel { id: dashboardModel }
     BudgetViewModel { id: budgetsModel }
     CategoryListModel { id: categoriesModel }
+
+    BillController {
+        id: billController
+        // Paying a bill logs an expense, so the expense-side views must refresh too.
+        onBillPaid: expenseController.refreshAll()
+    }
+    BillListModel { id: billsModel }
+
+    Connections {
+        target: AppBackend
+        // A restore swaps the database file out from under every model.
+        function onModelsRefreshNeeded() {
+            expensesModel.refresh()
+            dashboardModel.refresh()
+            budgetsModel.refresh()
+            categoriesModel.refresh()
+            billsModel.refresh()
+        }
+    }
 
     Connections {
         target: budgetsModel
@@ -84,6 +109,16 @@ ApplicationWindow {
         controller: expenseController
     }
 
+    AddBillSheet {
+        id: addBillSheet
+        controller: billController
+    }
+
+    EditBillSheet {
+        id: editBillSheet
+        controller: billController
+    }
+
     StackView {
         id: stack
         anchors.fill: parent
@@ -108,11 +143,20 @@ ApplicationWindow {
                     dashboard: dashboardModel
                     expenses: expensesModel
                     onEditRequested: (expenseId) => editSheet.openFor(expenseId)
+                    onReportsRequested: stack.push(reportsPage)
                 }
                 ExpensesScreen {
                     controller: expenseController
                     model: expensesModel
                     onEditRequested: (expenseId) => editSheet.openFor(expenseId)
+                }
+                BillsScreen {
+                    controller: billController
+                    model: billsModel
+                    onEditRequested: (billId) => {
+                        editBillSheet.billId = billId
+                        editBillSheet.open()
+                    }
                 }
                 BudgetsScreen {
                     budgets: budgetsModel
@@ -134,7 +178,8 @@ ApplicationWindow {
                     bottom: parent.bottom
                     margins: Theme.spacingL
                 }
-                visible: navBar.currentIndex <= 1
+                // Home/Expenses add an expense; the Bills tab adds a bill.
+                visible: navBar.currentIndex <= 2
                 width: 60
                 height: 60
                 icon.source: "icons/plus.svg"
@@ -142,7 +187,7 @@ ApplicationWindow {
                 icon.height: 26
                 Material.background: Theme.accent
                 Material.foreground: "#ffffff"
-                onClicked: addSheet.open()
+                onClicked: navBar.currentIndex === 2 ? addBillSheet.open() : addSheet.open()
             }
         }
     }
@@ -153,6 +198,36 @@ ApplicationWindow {
         CategoryManagerScreen {
             categories: categoriesModel
             onClosed: stack.pop()
+        }
+    }
+
+    Component {
+        id: reportsPage
+
+        Page {
+            background: Rectangle { color: Theme.surface }
+
+            ReportsScreen {
+                anchors.fill: parent
+            }
+
+            header: ToolBar {
+                Material.background: Theme.cardColor
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingM
+                    ToolButton {
+                        icon.source: "icons/chevron-left.svg"
+                        onClicked: stack.pop()
+                    }
+                    Text {
+                        text: qsTr("Reports")
+                        font.weight: Font.DemiBold
+                        color: Theme.primaryInk
+                        Layout.fillWidth: true
+                    }
+                }
+            }
         }
     }
 }

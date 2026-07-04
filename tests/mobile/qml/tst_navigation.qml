@@ -18,8 +18,8 @@ Item {
         name: "NavBar"
         when: windowShown
 
-        function test_hasFourTabs() {
-            compare(navBar.count, 4)
+        function test_hasFiveTabs() {
+            compare(navBar.count, 5)
         }
 
         function test_clickSwitchesTab() {
