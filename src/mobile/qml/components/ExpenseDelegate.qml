@@ -5,6 +5,7 @@ import Masareef
 
 // One expense row: category dot, description, category + amount. Tap to
 // edit; swipe fully in either direction to delete (RTL-agnostic).
+// Supports optional long-press selection mode.
 SwipeDelegate {
     id: delegate
 
@@ -16,15 +17,34 @@ SwipeDelegate {
     required property string description
     required property string amountFormatted
 
+    property bool isSelected: false
+    property bool selectionMode: false
+
     signal editRequested(int expenseId)
     signal removeRequested(int index)
+    signal selectionToggled(int index)
 
     width: ListView.view ? ListView.view.width : implicitWidth
     implicitHeight: Math.max(Theme.touchTarget + 12, content.implicitHeight + 2 * Theme.spacingS)
 
-    onClicked: editRequested(expenseId)
+    onClicked: {
+        if (selectionMode)
+            selectionToggled(index)
+        else
+            editRequested(expenseId)
+    }
 
-    swipe.onCompleted: removeRequested(index)
+    TapHandler {
+        acceptedButtons: Qt.LeftButton
+        onLongPressed: {
+            delegate.selectionToggled(index)
+        }
+    }
+
+    swipe.onCompleted: {
+        if (!selectionMode)
+            removeRequested(index)
+    }
 
     contentItem: RowLayout {
         id: content
@@ -79,6 +99,6 @@ SwipeDelegate {
     }
 
     background: Rectangle {
-        color: delegate.down ? Theme.gridline : "transparent"
+        color: delegate.isSelected ? Theme.gridline : (delegate.down ? Theme.gridline : "transparent")
     }
 }

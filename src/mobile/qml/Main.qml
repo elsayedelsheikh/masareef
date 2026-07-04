@@ -108,6 +108,7 @@ ApplicationWindow {
                     dashboard: dashboardModel
                     expenses: expensesModel
                     onEditRequested: (expenseId) => editSheet.openFor(expenseId)
+                    onReportsRequested: stack.push(reportsPage)
                 }
                 ExpensesScreen {
                     controller: expenseController
@@ -153,6 +154,36 @@ ApplicationWindow {
         CategoryManagerScreen {
             categories: categoriesModel
             onClosed: stack.pop()
+        }
+    }
+
+    Component {
+        id: reportsPage
+
+        Page {
+            background: Rectangle { color: Theme.surface }
+
+            ReportsScreen {
+                anchors.fill: parent
+            }
+
+            header: ToolBar {
+                Material.background: Theme.cardColor
+                RowLayout {
+                    anchors.fill: parent
+                    anchors.margins: Theme.spacingM
+                    ToolButton {
+                        icon.source: "icons/chevron-left.svg"
+                        onClicked: stack.pop()
+                    }
+                    Text {
+                        text: qsTr("Reports")
+                        font.weight: Font.DemiBold
+                        color: Theme.primaryInk
+                        Layout.fillWidth: true
+                    }
+                }
+            }
         }
     }
 }

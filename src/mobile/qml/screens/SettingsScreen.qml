@@ -3,7 +3,7 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import Masareef
 
-// Theme, language, currency, category management and About.
+// Theme, language, currency, category management, backup/restore and About.
 Flickable {
     id: screen
 
@@ -12,6 +12,41 @@ Flickable {
     contentWidth: width
     contentHeight: column.implicitHeight + 2 * Theme.spacingM
     clip: true
+
+    Dialog {
+        id: restoreConfirmDialog
+        property string backupPath: ""
+
+        title: qsTr("Restore from backup?")
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        onAccepted: {
+            if (AppBackend.restore(backupPath)) {
+                // ponytail: assuming modelsRefreshNeeded is connected at app level
+                showMessage.text = qsTr("Backup restored successfully")
+                showMessage.open()
+            } else {
+                showMessage.text = qsTr("Restore failed")
+                showMessage.open()
+            }
+        }
+
+        Text {
+            text: qsTr("This will replace your current data with the selected backup. Continue?")
+            color: Material.foreground
+        }
+    }
+
+    Dialog {
+        id: showMessage
+        title: qsTr("Backup")
+        property alias text: messageText.text
+        standardButtons: Dialog.Ok
+
+        Text {
+            id: messageText
+            color: Material.foreground
+        }
+    }
 
     component SectionLabel: Text {
         font.pixelSize: Theme.fontSizeCaption
@@ -94,6 +129,50 @@ Flickable {
                     AppBackend.currencyCode = code
                 else
                     text = AppBackend.currencyCode
+            }
+        }
+
+        SectionLabel {
+            Layout.topMargin: Theme.spacingM
+            text: qsTr("Backup & Restore")
+        }
+
+        Button {
+            Layout.fillWidth: true
+            text: qsTr("Back up now")
+            implicitHeight: Theme.touchTarget
+            onClicked: {
+                if (AppBackend.backupNow())
+                    showMessage.text = qsTr("Backup created successfully")
+                else
+                    showMessage.text = qsTr("Backup failed")
+                showMessage.open()
+            }
+        }
+
+        Text {
+            Layout.fillWidth: true
+            text: qsTr("Recent backups")
+            font.pixelSize: Theme.fontSizeCaption
+            font.letterSpacing: 0.5
+            color: Theme.mutedInk
+            visible: backupRepeater.count > 0
+        }
+
+        Repeater {
+            id: backupRepeater
+            model: AppBackend.backups()
+
+            delegate: Button {
+                required property string modelData
+                Layout.fillWidth: true
+                flat: true
+                text: modelData
+                implicitHeight: Theme.touchTarget
+                onClicked: {
+                    restoreConfirmDialog.backupPath = modelData
+                    restoreConfirmDialog.open()
+                }
             }
         }
 

@@ -1,6 +1,7 @@
 #include "backend/appbackend.h"
 #include "backend/themecontroller.h"
 #include "db/databasemanager.h"
+#include "utils/backupmanager.h"
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -17,6 +18,9 @@ int main(int argc, char* argv[])
                   qPrintable(opened.error().message));
         return 1;
     }
+
+    // Auto startup backup (keep-newest-10 policy in BackupManager)
+    BackupManager::createStartupBackup();
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,

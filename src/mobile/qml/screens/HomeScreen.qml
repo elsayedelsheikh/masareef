@@ -12,6 +12,7 @@ Flickable {
     property ExpenseListModel expenses
 
     signal editRequested(int expenseId)
+    signal reportsRequested()
 
     contentWidth: width
     contentHeight: column.implicitHeight + 2 * Theme.spacingM
@@ -59,6 +60,15 @@ Flickable {
                 ? AppBackend.formatMoney(screen.dashboard.spentMinor) : ""
             budgetText: screen.dashboard
                 ? AppBackend.formatMoney(screen.dashboard.budgetMinor) : ""
+        }
+
+        Button {
+            Layout.fillWidth: true
+            flat: true
+            text: qsTr("View Reports")
+            implicitHeight: Theme.touchTarget
+            Material.foreground: Theme.accent
+            onClicked: screen.reportsRequested()
         }
 
         Text {
