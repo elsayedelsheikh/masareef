@@ -61,8 +61,8 @@ void TestBillListModel::emptyModel_hasNoRows()
 
 void TestBillListModel::rowCount_reflectsActiveBills()
 {
-    addBill(m_billsId, QStringLiteral("Electric"), QStringLiteral("100"),
-            QDate(2026, 7, 10));
+    const int bill1Id = addBill(m_billsId, QStringLiteral("Electric"), QStringLiteral("100"),
+                                 QDate(2026, 7, 10));
     addBill(m_groceriesId, QStringLiteral("Groceries"), QStringLiteral("50"),
             QDate(2026, 7, 15));
 
@@ -70,7 +70,7 @@ void TestBillListModel::rowCount_reflectsActiveBills()
     QCOMPARE(model.rowCount(), 2);
 
     // Deactivate one bill
-    QVERIFY(BillRepository::setActive(1, false));
+    QVERIFY(BillRepository::setActive(bill1Id, false));
     model.refresh();
     QCOMPARE(model.rowCount(), 1); // Only active bills shown
 }

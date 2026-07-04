@@ -130,9 +130,13 @@ Item {
                             text: qsTr("Paid")
                             implicitHeight: Theme.touchTarget
                             Material.foreground: Theme.accent
-                            onClicked: screen.controller.markPaid(
-                                model.billId, model.amountFormatted,
-                                new Date(), model.name)
+                            onClicked: {
+                                // Convert minor units to plain decimal string for parsing
+                                const plainAmount = (model.amountMinor / 100).toFixed(2)
+                                screen.controller.markPaid(
+                                    model.billId, plainAmount,
+                                    new Date(), model.name)
+                            }
                         }
                     }
 

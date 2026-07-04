@@ -119,7 +119,7 @@ void BillListModel::reload()
         Row row;
         row.bill = bill;
         row.categoryName = bill.categoryName;
-        row.categoryColor = bill.categoryName; // ponytail: name maps to Palette color
+        row.categoryColor = bill.categoryColor;
         row.urgency = computeUrgency(bill);
         m_rows.append(row);
     }

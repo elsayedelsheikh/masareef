@@ -12,6 +12,7 @@ struct RecurringBill {
     int id = 0;
     int categoryId = 0;
     QString categoryName;
+    QString categoryColor;
     QString name;
     Money amount; // expected amount, editable at payment time
     Recurrence recurrence = Recurrence::Monthly;

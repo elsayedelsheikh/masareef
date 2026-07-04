@@ -5,6 +5,7 @@
 #include "utils/currencyformatter.h"
 
 #include <QCoreApplication>
+#include <QDateTime>
 #include <QDir>
 #include <QGuiApplication>
 #include <QLocale>
@@ -123,7 +124,7 @@ bool AppBackend::backupNow()
     // ponytail: backing up to standard documents folder; upgrade to file picker if needed
     const QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     const QString destFile = QDir(docsPath).filePath(
-        QStringLiteral("masareef-backup-%1.db").arg(QDate::currentDate().toString(Qt::ISODate)));
+        QStringLiteral("masareef-backup-%1.db").arg(QDateTime::currentDateTime().toString(Qt::ISODate)));
     return static_cast<bool>(BackupManager::backupTo(destFile));
 }
 
@@ -132,8 +133,13 @@ QStringList AppBackend::backups() const
     // ponytail: list backups from documents folder; upgrade if a proper backup folder is added
     const QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     QDir backupDir(docsPath);
-    return backupDir.entryList(QStringList() << QStringLiteral("masareef-backup-*.db"),
-                               QDir::Files, QDir::Time);
+    QStringList filenames = backupDir.entryList(QStringList() << QStringLiteral("masareef-backup-*.db"),
+                                                QDir::Files, QDir::Time);
+    QStringList absolutePaths;
+    absolutePaths.reserve(filenames.size());
+    for (const QString& filename : filenames)
+        absolutePaths.append(backupDir.filePath(filename));
+    return absolutePaths;
 }
 
 bool AppBackend::restore(const QString& path)
