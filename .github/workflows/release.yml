@@ -79,6 +79,11 @@ jobs:
           # `linuxdeploy-plugin-qt` executable on PATH.
           export PATH="/tmp/linuxdeploy-plugin-qt-squashfs-root/usr/bin:$PATH"
 
+          # masareef only uses QSQLITE; drop the other Qt SQL drivers so the
+          # Qt plugin doesn't fail resolving their (unshipped) system deps,
+          # e.g. libmimerapi.so for the Mimer driver.
+          find "$QT_ROOT_DIR/plugins/sqldrivers" -type f ! -name 'libqsqlite.so' -delete
+
           # Create app directory structure
           mkdir -p AppDir/usr/bin
           mkdir -p AppDir/usr/share/applications
