@@ -182,10 +182,14 @@ jobs:
           # recursive glob so the path stays correct if Qt's layout shifts.
           # androiddeployqt --sign writes a *-signed.apk alongside gradle's
           # *-unsigned.apk; exclude the unsigned one so the release only ever
-          # ships the signed APK.
+          # ships the signed APK. Qt also drops a convenience copy of the
+          # same signed apk (masareef_mobile.apk) next to the gradle output
+          # dir (android-build-release-signed.apk) — exclude the gradle one
+          # so the release only ships one, friendlier-named copy.
           path: |
             build-android/**/*.apk
             !build-android/**/*unsigned*.apk
+            !build-android/**/android-build-*.apk
 
   release:
     needs: [appimage, apk]
@@ -194,6 +198,10 @@ jobs:
       contents: write  # softprops/action-gh-release creates the release
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Need full history + tags to diff against the previous tag when
+          # generating the changelog below.
+          fetch-depth: 0
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -206,6 +214,27 @@ jobs:
           find . -name "*.apk" -type f -exec sha256sum {} \; >> ../sha256sums.txt
           cat ../sha256sums.txt
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CURRENT_TAG="${GITHUB_REF_NAME}"
+          # Most recent tag before this one, if any.
+          PREV_TAG=$(git tag --sort=-creatordate | grep -Fxv "$CURRENT_TAG" | head -1)
+
+          RANGE="$CURRENT_TAG"
+          [ -n "$PREV_TAG" ] && RANGE="${PREV_TAG}..${CURRENT_TAG}"
+
+          {
+            echo "changelog<<CHANGELOG_EOF"
+            echo "## What's Changed"
+            # Squash-merged PR commits are titled "<subject> (#N)"; drop the
+            # PR-number suffix so notes are plain, mention-free bullets.
+            git log "$RANGE" --no-merges --pretty=format:'%s' \
+              | sed -E 's/ \(#[0-9]+\)$//; s/^/- /'
+            echo ""
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
@@ -213,4 +242,4 @@ jobs:
             appimage/Masareef-*-x86_64.AppImage
             apk/**/*.apk
             sha256sums.txt
-          generate_release_notes: true
+          body: ${{ steps.changelog.outputs.changelog }}
