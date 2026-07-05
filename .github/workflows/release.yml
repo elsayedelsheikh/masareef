@@ -202,6 +202,7 @@ jobs:
           # Need full history + tags to diff against the previous tag when
           # generating the changelog below.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
@@ -219,7 +220,7 @@ jobs:
         run: |
           CURRENT_TAG="${GITHUB_REF_NAME}"
           # Most recent tag before this one, if any.
-          PREV_TAG=$(git tag --sort=-creatordate | grep -Fxv "$CURRENT_TAG" | head -1)
+          PREV_TAG=$(git tag --sort=-creatordate | grep -Fxv "$CURRENT_TAG" | head -1 || true)
 
           RANGE="$CURRENT_TAG"
           [ -n "$PREV_TAG" ] && RANGE="${PREV_TAG}..${CURRENT_TAG}"
