@@ -47,9 +47,10 @@ Item {
             Layout.fillHeight: false // children fill vertically; don't propagate that up
             spacing: 4
 
+            property var months: screen.model.monthlyTotals()
+
             function getMaxValue() {
                 let max = 0
-                const months = screen.model.monthlyTotals()
                 for (let i = 0; i < months.length; i++) {
                     if (months[i].totalMinor > max)
                         max = months[i].totalMinor
@@ -58,7 +59,7 @@ Item {
             }
 
             Repeater {
-                model: screen.model.monthlyTotals()
+                model: monthlyChart.months
 
                 ColumnLayout {
                     Layout.fillWidth: true
@@ -138,6 +139,7 @@ Item {
                 Label {
                     text: modelData.categoryName
                     Layout.fillWidth: true
+                    elide: Text.ElideRight
                 }
 
                 Label {

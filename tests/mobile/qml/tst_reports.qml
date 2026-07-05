@@ -24,7 +24,9 @@ Item {
         // Guards the gadget property exposure that the chart bindings read.
         // A plain-struct model returns undefined here and the screen renders blank.
         function test_monthlyTotalsExposeProperties() {
-            TestFixture.addExpense("Groceries", 2000, "test", "2026-06-15")
+            const today = new Date()
+            TestFixture.addExpense("Groceries", 2000, "test",
+                Qt.formatDate(new Date(today.getFullYear(), today.getMonth(), 15), "yyyy-MM-dd"))
             const totals = screen.model.monthlyTotals()
             verify(totals.length > 0)
             verify(totals[0].monthName.length > 0)
