@@ -8,3 +8,6 @@ src/mobile/android/build/
 CMakeLists.txt.user
 *.autosave
 .cache/
+keystore.b64
+masareef-release.keystore
+*.keystore
