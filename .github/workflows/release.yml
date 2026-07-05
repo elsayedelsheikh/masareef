@@ -92,8 +92,10 @@ jobs:
             --plugin qt \
             --output appimage
 
-          # Rename to expected format
-          mv Masareef-*.AppImage Masareef-${VERSION}-x86_64.AppImage
+          # Rename to expected format (linuxdeploy may already emit this name)
+          src=$(ls Masareef*.AppImage | head -1)
+          dst="Masareef-${VERSION}-x86_64.AppImage"
+          [ "$src" != "$dst" ] && mv "$src" "$dst"
 
       - name: Upload AppImage
         uses: actions/upload-artifact@v4
@@ -163,11 +165,18 @@ jobs:
           name: apk
           # Qt nests the apk under build-android/src/mobile/android-build/...;
           # recursive glob so the path stays correct if Qt's layout shifts.
-          path: build-android/**/*.apk
+          # androiddeployqt --sign writes a *-signed.apk alongside gradle's
+          # *-unsigned.apk; exclude the unsigned one so the release only ever
+          # ships the signed APK.
+          path: |
+            build-android/**/*.apk
+            !build-android/**/*unsigned*.apk
 
   release:
     needs: [appimage, apk]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # softprops/action-gh-release creates the release
     steps:
       - uses: actions/checkout@v4
 

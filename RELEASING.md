@@ -71,7 +71,7 @@ The release workflow will:
 4. **Release**: Download both artifacts and publish them with GitHub Releases
 
 Once the workflow completes, the release will be visible at:
-```
+```text
 https://github.com/your-org/masareef/releases/tag/vX.Y.Z
 ```
 
@@ -86,7 +86,7 @@ Each release includes:
 
 The Android version code is computed automatically from the semantic version:
 
-```
+```text
 version_code = major*10000 + minor*100 + patch
 ```
 
