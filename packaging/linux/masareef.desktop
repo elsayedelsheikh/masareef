@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=Masareef
+Comment=Expense tracking and budget management
+Icon=masareef
+Exec=masareef %F
+Categories=Office;Finance;
+Terminal=false

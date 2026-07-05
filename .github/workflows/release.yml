@@ -1,0 +1,204 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.extract_version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify tag matches CMake version
+        id: extract_version
+        run: |
+          # Extract PROJECT_VERSION from root CMakeLists.txt
+          PROJECT_VERSION=$(grep 'project(masareef VERSION' CMakeLists.txt | grep -oP 'VERSION \K[^ ]+')
+          TAG_VERSION="${GITHUB_REF_NAME#v}"  # Remove 'v' prefix
+
+          echo "PROJECT_VERSION: $PROJECT_VERSION"
+          echo "TAG_VERSION: $TAG_VERSION"
+
+          if [ "$PROJECT_VERSION" != "$TAG_VERSION" ]; then
+            echo "ERROR: Tag version ($TAG_VERSION) does not match CMakeLists.txt version ($PROJECT_VERSION)"
+            exit 1
+          fi
+
+          echo "version=$TAG_VERSION" >> "$GITHUB_OUTPUT"
+
+  appimage:
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt 6.9.x
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.9.0
+          modules: qtcharts
+          cache: true
+
+      - name: Configure (Release + QML)
+        run: |
+          cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMASAREEF_BUILD_QML=ON \
+            -B build-release \
+            -S .
+
+      - name: Build
+        run: cmake --build build-release
+
+      - name: Install linuxdeploy
+        run: |
+          cd /tmp
+          wget https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+          ./linuxdeploy-x86_64.AppImage --appimage-extract
+
+          wget https://github.com/linuxdeploy/linuxdeploy-plugin-qt/releases/download/continuous/linuxdeploy-plugin-qt-x86_64.AppImage
+          chmod +x linuxdeploy-plugin-qt-x86_64.AppImage
+          ./linuxdeploy-plugin-qt-x86_64.AppImage --appimage-extract
+
+      - name: Create AppImage
+        run: |
+          export VERSION="${{ needs.guard.outputs.version }}"
+          export QT_QPA_PLATFORM_PLUGIN_PATH="$QT_ROOT_DIR/plugins"
+          export LD_LIBRARY_PATH="$QT_ROOT_DIR/lib:$LD_LIBRARY_PATH"
+
+          # Create app directory structure
+          mkdir -p AppDir/usr/bin
+          mkdir -p AppDir/usr/share/applications
+          mkdir -p AppDir/usr/share/pixmaps
+
+          # Copy binary
+          cp build-release/masareef AppDir/usr/bin/
+
+          # Copy resources
+          cp packaging/linux/masareef.desktop AppDir/usr/share/applications/
+          cp packaging/linux/masareef.png AppDir/usr/share/pixmaps/
+
+          # Run linuxdeploy
+          /tmp/squashfs-root/AppRun \
+            -e AppDir/usr/bin/masareef \
+            -d AppDir/usr/share/applications/masareef.desktop \
+            -i AppDir/usr/share/pixmaps/masareef.png \
+            --appdir AppDir \
+            --plugin qt \
+            --output appimage
+
+          # Rename to expected format (linuxdeploy may already emit this name)
+          src=$(ls Masareef*.AppImage | head -1)
+          dst="Masareef-${VERSION}-x86_64.AppImage"
+          [ "$src" != "$dst" ] && mv "$src" "$dst"
+
+      - name: Upload AppImage
+        uses: actions/upload-artifact@v4
+        with:
+          name: appimage
+          path: Masareef-*-x86_64.AppImage
+
+  apk:
+    needs: guard
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install Qt (host tools)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.9.0
+          host: linux
+          target: desktop
+          cache: true
+
+      - name: Save host Qt path
+        run: echo "QT_HOST_PATH=$QT_ROOT_DIR" >> "$GITHUB_ENV"
+
+      - name: Install Qt (Android arm64-v8a)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: 6.9.0
+          host: linux
+          target: android
+          arch: android_arm64_v8a
+          cache: true
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_B64 }}" | base64 -d > keystore.jks
+
+      - name: Configure (Android arm64-v8a Release)
+        run: |
+          cmake \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$QT_ROOT_DIR/lib/cmake/Qt6/qt.toolchain.cmake" \
+            -DQT_HOST_PATH="$QT_HOST_PATH" \
+            -DANDROID_SDK_ROOT="$ANDROID_SDK_ROOT" \
+            -DANDROID_NDK_ROOT="$ANDROID_NDK_ROOT" \
+            -DQT_ANDROID_SIGN_APK=ON \
+            -B build-android \
+            -S .
+
+      - name: Build Android APK
+        run: cmake --build build-android
+        env:
+          QT_ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/keystore.jks
+          QT_ANDROID_KEYSTORE_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          QT_ANDROID_KEYSTORE_STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASS }}
+          QT_ANDROID_KEYSTORE_KEY_PASS: ${{ secrets.ANDROID_KEY_PASS }}
+
+      - name: Find and upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk
+          # Qt nests the apk under build-android/src/mobile/android-build/...;
+          # recursive glob so the path stays correct if Qt's layout shifts.
+          # androiddeployqt --sign writes a *-signed.apk alongside gradle's
+          # *-unsigned.apk; exclude the unsigned one so the release only ever
+          # ships the signed APK.
+          path: |
+            build-android/**/*.apk
+            !build-android/**/*unsigned*.apk
+
+  release:
+    needs: [appimage, apk]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # softprops/action-gh-release creates the release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+
+      - name: Generate sha256sums
+        run: |
+          cd appimage
+          sha256sum Masareef-*-x86_64.AppImage > ../sha256sums.txt
+          cd ../apk
+          find . -name "*.apk" -type f -exec sha256sum {} \; >> ../sha256sums.txt
+          cat ../sha256sums.txt
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            appimage/Masareef-*-x86_64.AppImage
+            apk/**/*.apk
+            sha256sums.txt
+          generate_release_notes: true

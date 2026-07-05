@@ -100,11 +100,15 @@ target_link_libraries(masareef_mobile PRIVATE
 )
 
 if(ANDROID)
+    # Compute version code: major*10000 + minor*100 + patch (e.g., 1.0.0 -> 10000)
+    math(EXPR QT_ANDROID_VERSION_CODE_VALUE
+        "${PROJECT_VERSION_MAJOR}*10000 + ${PROJECT_VERSION_MINOR}*100 + ${PROJECT_VERSION_PATCH}")
+
     set_target_properties(masareef_mobile PROPERTIES
         QT_ANDROID_PACKAGE_NAME "com.masareef.app"
         QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/android"
         QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
-        QT_ANDROID_VERSION_CODE 1
+        QT_ANDROID_VERSION_CODE "${QT_ANDROID_VERSION_CODE_VALUE}"
         QT_ANDROID_TARGET_SDK_VERSION 34
     )
 endif()
