@@ -18,6 +18,7 @@ QList<MonthTotal> ReportsViewModel::monthlyTotals() const
         MonthTotal m;
         m.month = total.month;
         m.monthName = total.month.toString(QStringLiteral("MMM yy"));
+        m.monthShort = total.month.toString(QStringLiteral("MMM"));
         m.totalFormatted = CurrencyFormatter::format(total.total);
         m.totalMinor = total.total.minorUnits();
         result.append(m);
@@ -35,7 +36,7 @@ QList<CategoryTotal> ReportsViewModel::categoryTotals(QDate from, QDate to) cons
         CategoryTotal c;
         c.categoryId = total.categoryId;
         c.categoryName = total.name;
-        c.categoryColor = total.color;
+        c.categoryColor = Palette::series(total.color);
         c.totalFormatted = CurrencyFormatter::format(total.total);
         c.totalMinor = total.total.minorUnits();
         result.append(c);
