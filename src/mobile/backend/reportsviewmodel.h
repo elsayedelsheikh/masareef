@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QColor>
 #include <QDate>
 #include <QObject>
 #include <QtQml/qqmlregistration.h>
@@ -7,19 +8,32 @@
 // Monthly and category breakdowns of expenses, exposed to QML as lists of
 // objects so charts can bind to them. No filtering: Reports show all data.
 
-// ponytail: these are plain data structs returned by the model; no Q_OBJECT needed,
-// but QML accesses their properties as JS objects via the list.
+// Q_GADGET so QML can read the members off modelData in the Repeater bindings;
+// public fields stay directly accessible from C++ (tests read .month etc).
 struct MonthTotal {
+    Q_GADGET
+    Q_PROPERTY(QString monthName MEMBER monthName)
+    Q_PROPERTY(QString monthShort MEMBER monthShort)
+    Q_PROPERTY(QString totalFormatted MEMBER totalFormatted)
+    Q_PROPERTY(qint64 totalMinor MEMBER totalMinor)
+public:
     QDate month;
-    QString monthName;
+    QString monthName;  // "MMM yy" — tooltip
+    QString monthShort; // "MMM"    — axis label
     QString totalFormatted;
     qint64 totalMinor = 0;
 };
 
 struct CategoryTotal {
+    Q_GADGET
+    Q_PROPERTY(QString categoryName MEMBER categoryName)
+    Q_PROPERTY(QColor categoryColor MEMBER categoryColor)
+    Q_PROPERTY(QString totalFormatted MEMBER totalFormatted)
+    Q_PROPERTY(qint64 totalMinor MEMBER totalMinor)
+public:
     int categoryId = 0;
     QString categoryName;
-    QString categoryColor;
+    QColor categoryColor; // resolved via Palette::series at build time
     QString totalFormatted;
     qint64 totalMinor = 0;
 };
