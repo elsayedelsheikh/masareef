@@ -26,8 +26,11 @@ BottomSheet {
         categoriesModel.refresh()
         // Load before committing to the id: if the expense is gone (deleted
         // on another screen) the sheet must not stay bound to it.
-        if (!controller.load(id))
+        if (!controller.load(id)) {
+            expenseId = 0
+            errorMessage = controller.lastError
             return
+        }
         expenseId = id
         form.amountText = controller.editAmountText
         form.selectedCategoryId = controller.editCategoryId
@@ -38,7 +41,7 @@ BottomSheet {
     }
 
     function save() {
-        if (!canSave || !controller || expenseId <= 0)
+        if (!canSave || !controller || expenseId <= 0 || errorMessage.length > 0)
             return
         if (controller.update(expenseId, form.selectedCategoryId, form.amountText,
                               form.descriptionText, form.date, form.notesText))
@@ -48,7 +51,7 @@ BottomSheet {
     }
 
     function removeExpense() {
-        if (!controller || expenseId <= 0)
+        if (!controller || expenseId <= 0 || errorMessage.length > 0)
             return
         if (controller.remove(expenseId))
             close()
