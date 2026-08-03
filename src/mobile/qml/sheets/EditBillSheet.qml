@@ -19,6 +19,10 @@ BottomSheet {
     readonly property bool canSave: form.valid
     property string errorMessage: ""
 
+    // The load failed, so this sheet never opens and its own banner would
+    // never be seen — whoever asked for it has to say so instead.
+    signal openFailed(string message)
+
     function openFor(id) {
         if (!controller)
             return
@@ -26,8 +30,10 @@ BottomSheet {
         categoriesModel.refresh()
         // Load before committing to the id: if the bill is gone (deleted on
         // another screen) the sheet must not open bound to nothing.
-        if (!controller.load(id))
+        if (!controller.load(id)) {
+            openFailed(controller.lastError)
             return
+        }
         billId = id
         form.amountText = controller.editAmountText
         form.nameText = controller.editName

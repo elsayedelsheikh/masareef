@@ -180,6 +180,28 @@ ApplicationWindow {
                 }
             }
 
+            // editSheet is shared by the Home and Expenses tabs and
+            // editBillSheet's own screen keeps its snackbar private, so a
+            // failed load surfaces here instead of on a screen that may not
+            // even be the current tab.
+            Snackbar {
+                id: sheetErrorSnackbar
+            }
+
+            Connections {
+                target: editSheet
+                function onOpenFailed(message) {
+                    sheetErrorSnackbar.show(message)
+                }
+            }
+
+            Connections {
+                target: editBillSheet
+                function onOpenFailed(message) {
+                    sheetErrorSnackbar.show(message)
+                }
+            }
+
             StackLayout {
                 anchors.fill: parent
                 currentIndex: navBar.currentIndex
