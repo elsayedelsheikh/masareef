@@ -54,6 +54,42 @@ void TestCurrencyFormatter::parse_data()
     QTest::newRow("letters") << QStringLiteral("abc") << false << qint64(0);
     QTest::newRow("two dots") << QStringLiteral("1.2.3") << false << qint64(0);
     QTest::newRow("negative") << QStringLiteral("-5") << false << qint64(0);
+
+    // What an Arabic keypad actually sends. Without folding these back to
+    // ASCII the parser rejects a perfectly good amount, which is the whole
+    // reason an Arabic user could not type into the amount field.
+    QTest::newRow("arabic-indic digits")
+        << QStringLiteral("١٠٠") << true << qint64(10000);
+    QTest::newRow("extended arabic-indic digits")
+        << QStringLiteral("۱۰۰") << true << qint64(10000);
+    QTest::newRow("arabic decimal separator")
+        << QStringLiteral("١٠٠٫٥") << true << qint64(10050);
+    QTest::newRow("arabic thousands separator")
+        << QStringLiteral("١٬٠٠٠") << true << qint64(100000);
+    QTest::newRow("mixed arabic and ascii")
+        << QStringLiteral("١٠0.50") << true << qint64(10050);
+    // IMEs wrap numbers in bidi controls; they are formatting, not value.
+    QTest::newRow("bidi marks")
+        << (QChar(0x200F) + QStringLiteral("100.50") + QChar(0x200E))
+        << true << qint64(10050);
+    QTest::newRow("bidi isolates")
+        << (QChar(0x2066) + QStringLiteral("100.50") + QChar(0x2069))
+        << true << qint64(10050);
+    // Group separators emitted by locale formatters carry no value.
+    QTest::newRow("no-break space")
+        << (QStringLiteral("1") + QChar(0x00A0) + QStringLiteral("000"))
+        << true << qint64(100000);
+    QTest::newRow("narrow no-break space")
+        << (QStringLiteral("1") + QChar(0x202F) + QStringLiteral("000"))
+        << true << qint64(100000);
+    // A plain space in the middle is a typo, not grouping.
+    QTest::newRow("ascii space inside")
+        << QStringLiteral("1 000") << false << qint64(0);
+    // Folding must not turn nonsense into a number.
+    QTest::newRow("arabic letters")
+        << QStringLiteral("ملبن") << false << qint64(0);
+    QTest::newRow("arabic-indic negative")
+        << QStringLiteral("-٥") << false << qint64(0);
 }
 
 void TestCurrencyFormatter::parse()

@@ -18,8 +18,18 @@ private slots:
     void urgency_categorizesByDaysUntilDue();
     void remove_deletesRow();
 
+    void showPaused_revealsDeactivatedBills();
+    void pausedBills_areGroupedAtTheEnd();
+    void pausedBills_urgencyIsPaused();
+    void activeCount_ignoresPausedBills();
+    void monthlyTotal_normalizesEveryRecurrence();
+    void monthlyTotal_ignoresPausedBills();
+    void dueLabel_describesTheDueDate();
+    void recurrenceLabel_isPresentForEveryRow();
+
 private:
-    int addBill(int categoryId, const QString& name, const QString& amount, QDate nextDue);
+    int addBill(int categoryId, const QString& name, const QString& amount, QDate nextDue,
+                Recurrence recurrence = Recurrence::Monthly);
 
     int m_billsId = -1;
     int m_groceriesId = -1;
@@ -41,14 +51,15 @@ void TestBillListModel::init()
 }
 
 int TestBillListModel::addBill(int categoryId, const QString& name,
-                               const QString& amount, QDate nextDue)
+                               const QString& amount, QDate nextDue,
+                               Recurrence recurrence)
 {
     RecurringBill bill;
     bill.categoryId = categoryId;
     bill.name = name;
     bill.amount = CurrencyFormatter::parse(amount).value_or(Money());
     bill.nextDue = nextDue;
-    bill.recurrence = Recurrence::Monthly;
+    bill.recurrence = recurrence;
     const Result<int> added = BillRepository::add(bill);
     return added ? *added : -1;
 }
@@ -146,6 +157,145 @@ void TestBillListModel::remove_deletesRow()
     QVERIFY(model.removeAt(0));
     QCOMPARE(model.rowCount(), 0);
     QCOMPARE(TestUtils::countRows(QStringLiteral("recurring_bills")), 0);
+}
+
+void TestBillListModel::showPaused_revealsDeactivatedBills()
+{
+    const int id = addBill(m_billsId, QStringLiteral("Electric"), QStringLiteral("100"),
+                           QDate::currentDate().addDays(5));
+    QVERIFY(id > 0);
+    QVERIFY(BillRepository::setActive(id, false));
+
+    BillListModel model;
+    QCOMPARE(model.rowCount(), 0); // paused bills are hidden by default
+
+    model.setShowPaused(true);
+    QCOMPARE(model.rowCount(), 1);
+    QVERIFY(model.data(model.index(0, 0), BillListModel::ActiveRole).isValid());
+    QVERIFY(!model.data(model.index(0, 0), BillListModel::ActiveRole).toBool());
+
+    model.setShowPaused(false);
+    QCOMPARE(model.rowCount(), 0);
+}
+
+void TestBillListModel::pausedBills_areGroupedAtTheEnd()
+{
+    // The repository orders by due date, so a paused bill due soon would
+    // land in the middle of the active ones — and a sectioned list would
+    // then print the "Paused" header more than once.
+    const int paused = addBill(m_billsId, QStringLiteral("Gym"), QStringLiteral("100"),
+                               QDate::currentDate().addDays(2));
+    addBill(m_billsId, QStringLiteral("Electric"), QStringLiteral("100"),
+            QDate::currentDate().addDays(1));
+    addBill(m_billsId, QStringLiteral("Rent"), QStringLiteral("100"),
+            QDate::currentDate().addDays(3));
+    QVERIFY(paused > 0);
+    QVERIFY(BillRepository::setActive(paused, false));
+
+    BillListModel model;
+    model.setShowPaused(true);
+    QCOMPARE(model.rowCount(), 3);
+
+    QCOMPARE(model.data(model.index(0, 0), BillListModel::NameRole).toString(),
+             QStringLiteral("Electric"));
+    QCOMPARE(model.data(model.index(1, 0), BillListModel::NameRole).toString(),
+             QStringLiteral("Rent"));
+    QCOMPARE(model.data(model.index(2, 0), BillListModel::NameRole).toString(),
+             QStringLiteral("Gym"));
+}
+
+void TestBillListModel::pausedBills_urgencyIsPaused()
+{
+    // Overdue *and* paused reads as paused: it is not chasing anything.
+    const int id = addBill(m_billsId, QStringLiteral("Gym"), QStringLiteral("100"),
+                           QDate::currentDate().addDays(-30));
+    QVERIFY(id > 0);
+    QVERIFY(BillRepository::setActive(id, false));
+
+    BillListModel model;
+    model.setShowPaused(true);
+    QCOMPARE(model.data(model.index(0, 0), BillListModel::UrgencyRole).toString(),
+             QStringLiteral("paused"));
+}
+
+void TestBillListModel::activeCount_ignoresPausedBills()
+{
+    const int paused = addBill(m_billsId, QStringLiteral("Gym"), QStringLiteral("100"),
+                               QDate::currentDate().addDays(5));
+    addBill(m_billsId, QStringLiteral("Electric"), QStringLiteral("100"),
+            QDate::currentDate().addDays(6));
+    QVERIFY(paused > 0);
+    QVERIFY(BillRepository::setActive(paused, false));
+
+    BillListModel model;
+    model.setShowPaused(true);
+    QCOMPARE(model.count(), 2);
+    QCOMPARE(model.activeCount(), 1);
+}
+
+void TestBillListModel::monthlyTotal_normalizesEveryRecurrence()
+{
+    addBill(m_billsId, QStringLiteral("Monthly"), QStringLiteral("100"),
+            QDate::currentDate().addDays(5), Recurrence::Monthly);
+    addBill(m_billsId, QStringLiteral("Quarterly"), QStringLiteral("300"),
+            QDate::currentDate().addDays(6), Recurrence::Quarterly);
+    addBill(m_billsId, QStringLiteral("Yearly"), QStringLiteral("1200"),
+            QDate::currentDate().addDays(7), Recurrence::Yearly);
+
+    // 100 + 300/3 + 1200/12 = 300 a month
+    BillListModel model;
+    QCOMPARE(model.monthlyTotalFormatted(),
+             CurrencyFormatter::format(Money::fromMinorUnits(30000)));
+}
+
+void TestBillListModel::monthlyTotal_ignoresPausedBills()
+{
+    const int paused = addBill(m_billsId, QStringLiteral("Gym"), QStringLiteral("100"),
+                               QDate::currentDate().addDays(5));
+    addBill(m_billsId, QStringLiteral("Electric"), QStringLiteral("250"),
+            QDate::currentDate().addDays(6));
+    QVERIFY(paused > 0);
+    QVERIFY(BillRepository::setActive(paused, false));
+
+    BillListModel model;
+    model.setShowPaused(true); // listed, but not counted
+    QCOMPARE(model.rowCount(), 2);
+    QCOMPARE(model.monthlyTotalFormatted(),
+             CurrencyFormatter::format(Money::fromMinorUnits(25000)));
+}
+
+void TestBillListModel::dueLabel_describesTheDueDate()
+{
+    addBill(m_billsId, QStringLiteral("Today"), QStringLiteral("100"),
+            QDate::currentDate());
+
+    BillListModel model;
+    const QModelIndex idx = model.index(0, 0);
+    QVERIFY(!model.data(idx, BillListModel::DueLabelRole).toString().isEmpty());
+    QCOMPARE(model.data(idx, BillListModel::DaysUntilDueRole).toInt(), 0);
+    QVERIFY(!model.data(idx, BillListModel::NextDueFormattedRole).toString().isEmpty());
+}
+
+void TestBillListModel::recurrenceLabel_isPresentForEveryRow()
+{
+    addBill(m_billsId, QStringLiteral("Monthly"), QStringLiteral("100"),
+            QDate::currentDate().addDays(5), Recurrence::Monthly);
+    addBill(m_billsId, QStringLiteral("Quarterly"), QStringLiteral("100"),
+            QDate::currentDate().addDays(6), Recurrence::Quarterly);
+    addBill(m_billsId, QStringLiteral("Yearly"), QStringLiteral("100"),
+            QDate::currentDate().addDays(7), Recurrence::Yearly);
+
+    BillListModel model;
+    QCOMPARE(model.rowCount(), 3);
+    QStringList labels;
+    for (int row = 0; row < model.rowCount(); ++row)
+        labels << model.data(model.index(row, 0),
+                             BillListModel::RecurrenceLabelRole)
+                      .toString();
+    for (const QString& label : labels)
+        QVERIFY(!label.isEmpty());
+    // Three cadences, three distinct labels.
+    QCOMPARE(QSet<QString>(labels.cbegin(), labels.cend()).size(), 3);
 }
 
 QTEST_GUILESS_MAIN(TestBillListModel)

@@ -7,9 +7,12 @@ Item {
     width: 420
     height: 900
 
+    property int lastEditId: -1
+
     BillsScreen {
         id: screen
         anchors.fill: parent
+        onEditRequested: (billId) => root.lastEditId = billId
     }
 
     TestCase {
@@ -19,7 +22,18 @@ Item {
 
         function init() {
             verify(TestFixture.resetDatabase())
+            screen.showPaused = false // also resets the filter control
             screen.model.refresh() // drop rows cached from a prior test
+            root.lastEditId = -1
+        }
+
+        function addBill(name, amount, daysFromNow) {
+            const catId = TestFixture.categoryId("Bills")
+            const due = new Date()
+            due.setDate(due.getDate() + daysFromNow)
+            const id = screen.controller.add(catId, amount, name, due, 0, "")
+            verify(id > 0, screen.controller.lastError)
+            return id
         }
 
         function test_emptyScreenShowsEmptyState() {
@@ -51,6 +65,82 @@ Item {
                                               "Internet"))
             compare(TestFixture.expenseCount(), 1)
             verify(screen.model.billIdAt(0) > 0)
+        }
+
+        // The Paid button and the "Mark paid" action both go through
+        // payRow, which sends the amount as exact text rather than a
+        // divided float.
+        function test_payRowLogsTheExactAmount() {
+            addBill("Internet", "1234.56", 3)
+            tryVerify(function() { return screen.model.count === 1 })
+            compare(TestFixture.expenseCount(), 0)
+
+            screen.payRow(screen._rowAt(0))
+            compare(TestFixture.expenseCount(), 1)
+        }
+
+        function test_pausingHidesTheBillAndSwitchesTheFilter() {
+            addBill("Gym", "300", 5)
+            tryVerify(function() { return screen.model.count === 1 })
+
+            screen.setRowActive(screen._rowAt(0), false)
+            // The filter follows, so the paused bill stays reachable
+            // instead of vanishing the moment it is paused.
+            tryVerify(function() { return screen.showPaused })
+            compare(screen.model.count, 1)
+            compare(screen.model.activeCount, 0)
+        }
+
+        function test_resumingBringsTheBillBack() {
+            addBill("Gym", "300", 5)
+            tryVerify(function() { return screen.model.count === 1 })
+
+            screen.setRowActive(screen._rowAt(0), false)
+            tryVerify(function() { return screen.model.activeCount === 0 })
+
+            screen.setRowActive(screen._rowAt(0), true)
+            tryVerify(function() { return screen.model.activeCount === 1 })
+        }
+
+        function test_monthlyTotalCountsOnlyActiveBills() {
+            addBill("Gym", "300", 5)
+            addBill("Internet", "200", 6)
+            tryVerify(function() { return screen.model.count === 2 })
+            const both = screen.model.monthlyTotalFormatted
+
+            screen.setRowActive(screen._rowAt(0), false)
+            tryVerify(function() {
+                return screen.model.monthlyTotalFormatted !== both
+            })
+            compare(screen.model.activeCount, 1)
+        }
+
+        function test_actionSheetEditReportsTheBill() {
+            const id = addBill("Gym", "300", 5)
+            tryVerify(function() { return screen.model.count === 1 })
+
+            screen.openActionsFor(0)
+            screen._runAction("edit")
+            compare(root.lastEditId, id)
+        }
+
+        function test_actionsOnACapturedRowAreIgnoredWhenThereIsNone() {
+            addBill("Gym", "300", 5)
+            tryVerify(function() { return screen.model.count === 1 })
+
+            screen._actionRow = null
+            screen._runAction("delete")
+            screen._deleteActionRow()
+            compare(screen.model.count, 1)
+        }
+
+        function test_deleteRemovesTheBill() {
+            addBill("Gym", "300", 5)
+            tryVerify(function() { return screen.model.count === 1 })
+
+            screen.openActionsFor(0)
+            screen._deleteActionRow()
+            tryVerify(function() { return screen.model.count === 0 })
         }
     }
 }

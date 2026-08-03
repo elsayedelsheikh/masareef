@@ -2,6 +2,7 @@
 
 #include "storage/expenserepository.h"
 #include "utils/currencyformatter.h"
+#include "utils/localeformat.h"
 #include "utils/palette.h"
 
 ReportsViewModel::ReportsViewModel(QObject* parent)
@@ -17,8 +18,11 @@ QList<MonthTotal> ReportsViewModel::monthlyTotals() const
     for (const auto& total : totals) {
         MonthTotal m;
         m.month = total.month;
-        m.monthName = total.month.toString(QStringLiteral("MMM yy"));
-        m.monthShort = total.month.toString(QStringLiteral("MMM"));
+        // Through LocaleFormat, not QDate::toString: the latter picks the
+        // system locale rather than the language the UI is actually running
+        // in, so an Arabic UI on an English phone kept English month names.
+        m.monthName = LocaleFormat::monthShortYear(total.month);
+        m.monthShort = LocaleFormat::monthShort(total.month);
         m.totalFormatted = CurrencyFormatter::format(total.total);
         m.totalMinor = total.total.minorUnits();
         result.append(m);

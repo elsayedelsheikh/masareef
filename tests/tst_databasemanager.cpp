@@ -8,7 +8,7 @@ private slots:
     void initTestCase();
     void initialize_createsSchemaAndSeeds();
     void initialize_isIdempotent();
-    void upgrade_v2ToV3_migratesSystemCategories();
+    void upgrade_fromV2_runsEveryLaterStep();
     void foreignKeys_areEnforced();
 };
 
@@ -54,15 +54,22 @@ void TestDatabaseManager::initialize_isIdempotent()
     QCOMPARE(TestUtils::countRows(QStringLiteral("categories")), 3);
 }
 
-// Simulate a real pre-v3 database (a legacy 'system' row, user_version = 2)
-// and verify re-initialize runs the v3 UPDATE that flips it to 'user'.
-// The fresh schema already carries the v1/v2 tables, so no seed SQL is
-// duplicated here — we just rewind user_version and inject a legacy row.
-void TestDatabaseManager::upgrade_v2ToV3_migratesSystemCategories()
+// Simulate a real v2 database and verify re-initialize runs every step
+// after it: the v3 UPDATE that flips 'system' categories to 'user', and the
+// v4 CREATE TABLEs for the price book.
+//
+// A v2 file predates the price book, so those tables have to be dropped
+// here as well as the version rewound. Leaving them in place would still
+// pass for v3 (its step is an idempotent UPDATE) but not for v4, and a
+// migration step is not required to be re-runnable — only to run once, in
+// order, on a database that has not seen it.
+void TestDatabaseManager::upgrade_fromV2_runsEveryLaterStep()
 {
     QVERIFY(TestUtils::resetDatabase());
 
     QSqlQuery query;
+    QVERIFY(query.exec(QStringLiteral("DROP TABLE price_history")));
+    QVERIFY(query.exec(QStringLiteral("DROP TABLE price_items")));
     QVERIFY(query.exec(QStringLiteral(
         "INSERT INTO categories (name, type, color) "
         "VALUES ('LegacySystem', 'system', '#abcdef')")));
@@ -73,12 +80,18 @@ void TestDatabaseManager::upgrade_v2ToV3_migratesSystemCategories()
 
     QVERIFY(query.exec(QStringLiteral("PRAGMA user_version")));
     QVERIFY(query.next());
-    QCOMPARE(query.value(0).toInt(), 3);
+    QCOMPARE(query.value(0).toInt(), 4);
 
+    // v3 ran
     QVERIFY(query.exec(
         QStringLiteral("SELECT COUNT(*) FROM categories WHERE type = 'system'")));
     QVERIFY(query.next());
     QCOMPARE(query.value(0).toInt(), 0);
+
+    // v4 ran, and the existing rows survived it
+    QCOMPARE(TestUtils::countRows(QStringLiteral("price_items")), 0);
+    QCOMPARE(TestUtils::countRows(QStringLiteral("price_history")), 0);
+    QVERIFY(TestUtils::countRows(QStringLiteral("categories")) > 0);
 }
 
 void TestDatabaseManager::foreignKeys_areEnforced()

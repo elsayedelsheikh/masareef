@@ -19,6 +19,12 @@ Item {
     property date filterFromDate
     property date filterToDate
 
+    // The row the action sheet is acting on. The row data is captured by
+    // value because a refresh can reorder the list while the sheet is open;
+    // the index is kept alongside it for the actions that need one.
+    property var _actionRow: null
+    property int _actionRowIndex: -1
+
     // Deletes through the controller (so every view refreshes) and offers
     // undo via restore.
     function removeAt(row) {
@@ -45,6 +51,56 @@ Item {
         const id = model.expenseIdAt(row)
         if (id > 0)
             editRequested(id)
+    }
+
+    function openActionsFor(row) {
+        const captured = model ? model.get(row) : null
+        if (!captured || captured.expenseId === undefined)
+            return
+        _actionRow = captured
+        _actionRowIndex = row
+
+        actionSheet.openWith(
+            captured.description.length > 0 ? captured.description
+                                            : captured.categoryName,
+            captured.amountFormatted + " · " + captured.dateFormatted,
+            [
+                { actionId: "edit", text: qsTr("Edit"), icon: "pencil" },
+                { actionId: "duplicate", text: qsTr("Duplicate"), icon: "copy" },
+                { actionId: "select", text: qsTr("Select"), icon: "check-square" },
+                { actionId: "delete", text: qsTr("Delete"), icon: "trash",
+                  destructive: true },
+            ])
+    }
+
+    function _runAction(actionId) {
+        const captured = _actionRow
+        if (!captured || !controller)
+            return
+
+        switch (actionId) {
+        case "edit":
+            editRequested(captured.expenseId)
+            break
+        case "duplicate":
+            // Same expense, dated today — the common case is a repeat of
+            // something bought again rather than a copy of that old day.
+            if (controller.restore(captured.categoryId, captured.amountMinor,
+                                   captured.description, new Date(),
+                                   captured.notes) > 0)
+                snackbar.show(qsTr("Duplicated"))
+            else
+                snackbar.show(controller.lastError)
+            break
+        case "select":
+            if (_actionRowIndex >= 0)
+                toggleSelect(_actionRowIndex)
+            break
+        case "delete":
+            if (_actionRowIndex >= 0)
+                removeAt(_actionRowIndex)
+            break
+        }
     }
 
     // Reassign (not mutate) so QML re-evaluates bindings on selectedRows — a
@@ -92,16 +148,18 @@ Item {
         id: categoriesModel
     }
 
-    Dialog {
+    ConfirmDialog {
         id: deleteConfirmDialog
-        title: qsTr("Delete %n expense(s)?", "", selectedRows.size)
-        standardButtons: Dialog.Ok | Dialog.Cancel
-        onAccepted: screen.removeSelected()
+        heading: qsTr("Delete %n expense(s)?", "", screen.selectedRows.size)
+        message: qsTr("This cannot be undone.")
+        confirmText: qsTr("Delete")
+        destructive: true
+        onConfirmed: screen.removeSelected()
+    }
 
-        Text {
-            text: qsTr("This action cannot be undone.")
-            color: Material.foreground
-        }
+    ActionSheet {
+        id: actionSheet
+        onTriggered: (actionId) => screen._runAction(actionId)
     }
 
     Snackbar {
@@ -114,12 +172,11 @@ Item {
         anchors.margins: Theme.spacingM
         spacing: Theme.spacingM
 
-        TextField {
+        SearchField {
             id: searchField
             Layout.fillWidth: true
             placeholderText: qsTr("Search expenses")
-            implicitHeight: Theme.touchTarget
-            onTextChanged: screen.model.searchText = text
+            onTextChanged: if (screen.model) screen.model.searchText = text
         }
 
         CategoryPicker {
@@ -144,11 +201,7 @@ Item {
             visible: filterExpanded
             spacing: Theme.spacingS
 
-            Text {
-                text: qsTr("From")
-                font.pixelSize: Theme.fontSizeCaption
-                color: Theme.mutedInk
-            }
+            FieldLabel { text: qsTr("From") }
 
             DateField {
                 id: fromDateField
@@ -160,11 +213,7 @@ Item {
                 }
             }
 
-            Text {
-                text: qsTr("To")
-                font.pixelSize: Theme.fontSizeCaption
-                color: Theme.mutedInk
-            }
+            FieldLabel { text: qsTr("To") }
 
             DateField {
                 id: toDateField
@@ -215,41 +264,55 @@ Item {
             }
         }
 
-        ListView {
-            id: listView
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
-            model: screen.model
-            spacing: 2
 
-            section.property: "dateSection"
-            section.criteria: ViewSection.FullString
-            section.delegate: Text {
-                required property string section
-                width: ListView.view.width
-                topPadding: Theme.spacingM
-                bottomPadding: Theme.spacingXs
-                text: Date.fromLocaleString(Qt.locale(), section, "yyyy-MM-dd")
-                    .toLocaleDateString(Qt.locale(AppBackend.localeName),
-                                        Locale.LongFormat)
-                font.pixelSize: Theme.fontSizeCaption
-                font.weight: Font.DemiBold
-                color: Theme.mutedInk
-            }
+            ListView {
+                id: listView
 
-            delegate: ExpenseDelegate {
-                isSelected: screen.selectedRows.has(index)
-                selectionMode: screen.selectedRows.size > 0
-                onEditRequested: (expenseId) => screen.editRequested(expenseId)
-                onRemoveRequested: (row) => screen.removeAt(row)
-                onSelectionToggled: (index) => screen.toggleSelect(index)
+                anchors.fill: parent
+                clip: true
+                model: screen.model
+                spacing: 2
+
+                section.property: "dateSection"
+                section.criteria: ViewSection.FullString
+                section.delegate: Text {
+                    required property string section
+
+                    width: ListView.view.width
+                    topPadding: Theme.spacingM
+                    bottomPadding: Theme.spacingXs
+                    // The section key is an ISO date. Formatting it in C++
+                    // keeps it in the UI language with Western digits and
+                    // gives "Today"/"Yesterday" for the recent days; QML's
+                    // toLocaleDateString would use the process locale and
+                    // Arabic-Indic numerals that clash with the amounts.
+                    // localeName is read so the binding re-runs on a
+                    // language switch.
+                    text: AppBackend.localeName
+                        ? AppBackend.formatDateSection(section) : ""
+                    font.pixelSize: Theme.fontSizeCaption
+                    font.weight: Font.DemiBold
+                    color: Theme.mutedInk
+                }
+
+                delegate: ExpenseDelegate {
+                    isSelected: screen.selectedRows.has(index)
+                    selectionMode: screen.selectedRows.size > 0
+                    onEditRequested: (expenseId) => screen.editRequested(expenseId)
+                    onRemoveRequested: (row) => screen.removeAt(row)
+                    onSelectionToggled: (index) => screen.toggleSelect(index)
+                    onMenuRequested: (index) => screen.openActionsFor(index)
+                }
             }
 
             EmptyState {
                 anchors.centerIn: parent
+                width: parent.width
                 visible: listView.count === 0
-                iconSource: "../icons/receipt.svg"
+                iconName: "receipt"
                 title: qsTr("Nothing here")
                 hint: qsTr("No expenses match your filters")
             }

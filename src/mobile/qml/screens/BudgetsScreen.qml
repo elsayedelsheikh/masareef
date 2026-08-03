@@ -111,7 +111,7 @@ Item {
                     spacing: Theme.spacingM
 
                     Rectangle {
-                        width: 12; height: 12; radius: 6
+                        implicitWidth: 12; implicitHeight: 12; radius: 6
                         color: row.model.color
                     }
                     Text {
@@ -147,7 +147,7 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     visible: row.model.hasBudget
-                    height: 6
+                    Layout.preferredHeight: 6
                     radius: 3
                     color: Theme.gridline
 

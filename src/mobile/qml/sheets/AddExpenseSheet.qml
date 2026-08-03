@@ -3,9 +3,13 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import Masareef
 
-// Bottom sheet for adding an expense. Opens clean every time; Save is
-// enabled only while the form is valid.
-Drawer {
+// Bottom sheet for adding an expense.
+//
+// The form is deliberately *not* cleared when the sheet closes. Only Cancel
+// and a successful save clear it, so an interruption — the back button, a
+// mis-tap, switching apps — leaves the half-filled entry intact and
+// reopening resumes it instead of starting over.
+BottomSheet {
     id: sheet
 
     property ExpenseController controller
@@ -17,69 +21,96 @@ Drawer {
     property alias selectedCategoryId: form.selectedCategoryId
     property alias date: form.date
     readonly property bool canSave: form.valid
+    // True while the sheet is showing an entry started before it was closed
+    property bool resumedDraft: false
+    // True while the sheet is showing an entry filled in from somewhere else
+    property bool prefilled: false
+
+    property string errorMessage: ""
+
+    // Opens the sheet already filled in from another screen — logging a
+    // price book item as an expense. This replaces whatever draft was in
+    // the form, so the sheet says so rather than silently swapping it.
+    function openPrefilled(categoryId, amountText, description) {
+        startOver()
+        form.selectedCategoryId = categoryId
+        form.amountText = amountText
+        form.descriptionText = description
+        form.date = new Date()
+        prefilled = true
+        open()
+    }
 
     function save() {
         if (!canSave || !controller)
             return
         const id = controller.add(form.selectedCategoryId, form.amountText,
                                   form.descriptionText, form.date, form.notesText)
-        if (id > 0)
+        if (id > 0) {
+            startOver()
             close()
+        } else {
+            // Nothing was saved, so the form keeps everything it had.
+            errorMessage = controller.lastError
+        }
     }
 
-    edge: Qt.BottomEdge
-    width: parent ? parent.width : 412
-    height: Math.min(contentColumn.implicitHeight + 2 * Theme.spacingL,
-                     parent ? parent.height * 0.9 : 800)
-    Material.roundedScale: Material.LargeScale
+    function startOver() {
+        form.clear()
+        resumedDraft = false
+        prefilled = false
+        errorMessage = ""
+    }
+
+    function discard() {
+        startOver()
+        close()
+    }
+
+    heading: qsTr("Add expense")
+    acceptEnabled: canSave
+
+    onAccepted: save()
+    onCancelled: discard()
 
     onAboutToShow: {
-        form.clear()
         categoriesModel.refresh()
+        errorMessage = ""
+        // A prefilled sheet was not "left off" anywhere; it says so itself.
+        resumedDraft = !prefilled && form.hasContent
     }
 
     CategoryListModel {
         id: categoriesModel
     }
 
-    ColumnLayout {
-        id: contentColumn
-        anchors.fill: parent
-        anchors.margins: Theme.spacingL
-        spacing: Theme.spacingM
+    InlineBanner {
+        Layout.fillWidth: true
+        visible: sheet.resumedDraft
+        message: qsTr("Picked up where you left off.")
+        actionText: qsTr("Start over")
+        onActionTriggered: sheet.startOver()
+    }
 
-        Text {
-            text: qsTr("Add expense")
-            font.pixelSize: Theme.fontSizeTitle
-            font.weight: Font.DemiBold
-            color: Theme.primaryInk
-        }
+    InlineBanner {
+        Layout.fillWidth: true
+        visible: sheet.prefilled
+        message: qsTr("Filled in from the price book.")
+        actionText: qsTr("Clear")
+        onActionTriggered: sheet.startOver()
+    }
 
-        ExpenseForm {
-            id: form
-            Layout.fillWidth: true
-            categories: categoriesModel
-        }
+    InlineBanner {
+        Layout.fillWidth: true
+        visible: sheet.errorMessage.length > 0
+        message: sheet.errorMessage
+        tint: Theme.criticalTint
+        ink: Theme.critical
+    }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacingM
-
-            Button {
-                Layout.fillWidth: true
-                flat: true
-                text: qsTr("Cancel")
-                implicitHeight: Theme.touchTarget
-                onClicked: sheet.close()
-            }
-            Button {
-                Layout.fillWidth: true
-                highlighted: true
-                enabled: sheet.canSave
-                text: qsTr("Save")
-                implicitHeight: Theme.touchTarget
-                onClicked: sheet.save()
-            }
-        }
+    ExpenseForm {
+        id: form
+        Layout.fillWidth: true
+        categories: categoriesModel
     }
 }

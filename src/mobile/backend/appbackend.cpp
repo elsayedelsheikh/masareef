@@ -3,6 +3,7 @@
 #include "utils/appconfig.h"
 #include "utils/backupmanager.h"
 #include "utils/currencyformatter.h"
+#include "utils/localeformat.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -52,12 +53,7 @@ void AppBackend::setLanguage(const QString& language)
 
 QString AppBackend::localeName() const
 {
-    if (m_effectiveLanguage == QLatin1String("ar"))
-        return QStringLiteral("ar_EG");
-    // Explicit English gets a stable locale; "system" keeps the OS one so
-    // dates match the rest of the device.
-    return m_language == QLatin1String("system") ? QLocale::system().name()
-                                                 : QStringLiteral("en_US");
+    return LocaleFormat::uiLocaleName();
 }
 
 QString AppBackend::version() const
@@ -75,10 +71,45 @@ QString AppBackend::formatMoneyPlain(qint64 minorUnits) const
     return CurrencyFormatter::formatPlain(Money::fromMinorUnits(minorUnits));
 }
 
+QString AppBackend::amountForEditing(qint64 minorUnits) const
+{
+    return LocaleFormat::amountForEditing(Money::fromMinorUnits(minorUnits));
+}
+
 qint64 AppBackend::parseMoney(const QString& text) const
 {
     const std::optional<Money> amount = CurrencyFormatter::parse(text);
     return amount ? amount->minorUnits() : -1;
+}
+
+QString AppBackend::formatDate(QDate date) const
+{
+    return LocaleFormat::date(date);
+}
+
+QString AppBackend::formatDateShort(QDate date) const
+{
+    return LocaleFormat::shortDate(date);
+}
+
+QString AppBackend::formatMonthYear(QDate date) const
+{
+    return LocaleFormat::monthYear(date);
+}
+
+QString AppBackend::formatRelativeDate(QDate date) const
+{
+    return LocaleFormat::relativeDate(date);
+}
+
+QString AppBackend::formatDueLabel(QDate nextDue) const
+{
+    return LocaleFormat::dueLabel(nextDue);
+}
+
+QString AppBackend::formatDateSection(const QString& isoDate) const
+{
+    return LocaleFormat::relativeDate(QDate::fromString(isoDate, Qt::ISODate));
 }
 
 void AppBackend::applyLanguage()
@@ -124,8 +155,12 @@ bool AppBackend::backupNow()
     // ponytail: backing up to standard documents folder; upgrade to file picker if needed
     const QString docsPath = QStandardPaths::writableLocation(QStandardPaths::DocumentsLocation);
     const QString destFile = QDir(docsPath).filePath(
+        // QLocale::c(), not the system locale: an Arabic device would
+        // otherwise put Arabic-Indic digits in the file name, and the
+        // backup list is sorted by that name to order it by age.
         QStringLiteral("masareef-backup-%1.db")
-            .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss"))));
+            .arg(QLocale::c().toString(QDateTime::currentDateTime(),
+                                       QStringLiteral("yyyyMMdd-HHmmss"))));
     return static_cast<bool>(BackupManager::backupTo(destFile));
 }
 

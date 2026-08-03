@@ -29,8 +29,13 @@ Flickable {
         spacing: Theme.spacingM
 
         Text {
-            text: new Date().toLocaleDateString(Qt.locale(AppBackend.localeName),
-                                                "MMMM yyyy")
+            // Formatted in C++ so the month name follows the UI language
+            // while the year keeps Western digits, matching the amounts
+            // below it. localeName is read so the binding re-runs on a
+            // language switch; formatMonthYear is a plain call and would
+            // not be a binding dependency on its own.
+            text: AppBackend.localeName
+                ? AppBackend.formatMonthYear(new Date()) : ""
             font.pixelSize: Theme.fontSizeTitle
             font.weight: Font.DemiBold
             color: Theme.primaryInk
@@ -89,7 +94,7 @@ Flickable {
                 spacing: Theme.spacingM
 
                 Rectangle {
-                    width: 12; height: 12; radius: 6
+                    implicitWidth: 12; implicitHeight: 12; radius: 6
                     color: model.color
                 }
                 Text {
@@ -101,7 +106,7 @@ Flickable {
                 }
                 Rectangle {
                     Layout.preferredWidth: 90
-                    height: 6
+                    Layout.preferredHeight: 6
                     radius: 3
                     color: Theme.gridline
 
@@ -142,7 +147,7 @@ Flickable {
                 spacing: Theme.spacingM
 
                 Rectangle {
-                    width: 10; height: 10; radius: 5
+                    implicitWidth: 10; implicitHeight: 10; radius: 5
                     color: model.categoryColor
                 }
                 ColumnLayout {
@@ -157,9 +162,7 @@ Flickable {
                         elide: Text.ElideRight
                     }
                     Text {
-                        text: model.date.toLocaleDateString(
-                                  Qt.locale(AppBackend.localeName),
-                                  Locale.ShortFormat)
+                        text: model.dateFormatted
                         font.pixelSize: Theme.fontSizeCaption
                         color: Theme.mutedInk
                     }
@@ -181,7 +184,7 @@ Flickable {
             Layout.fillWidth: true
             Layout.topMargin: Theme.spacingXl
             visible: !screen.expenses || screen.expenses.count === 0
-            iconSource: "../icons/wallet.svg"
+            iconName: "wallet"
             title: qsTr("No expenses yet")
             hint: qsTr("Tap + to add your first expense")
         }

@@ -9,7 +9,7 @@
 #include <QVariant>
 
 namespace {
-constexpr int kSchemaVersion = 3;
+constexpr int kSchemaVersion = 4;
 
 Result<void> execOrFail(QSqlQuery& query, const QString& sql)
 {
@@ -88,6 +88,37 @@ Result<void> seedDefaultCategories(QSqlQuery& query)
 // covered by upgrade_v2ToV3_migratesSystemCategories in tst_databasemanager.
 const QStringList kV3Statements = {
     QStringLiteral("UPDATE categories SET type = 'user' WHERE type = 'system'"),
+};
+
+// Version 4: the price book — a catalog of what things normally cost, so a
+// shopping list can be priced up before it becomes an expense.
+//
+// price_history keeps one row per recorded price change, which is what
+// makes "this is 12% more than last time" possible. Deleting an item takes
+// its history with it; clearing the category reference (SET NULL) keeps the
+// item usable after its category is deleted, unlike expenses, which must
+// always belong to one.
+const QStringList kV4Statements = {
+    QStringLiteral(
+        "CREATE TABLE price_items ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " name TEXT NOT NULL,"
+        " category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,"
+        " unit TEXT,"
+        " price INTEGER NOT NULL CHECK(price >= 0),"
+        " updated_at DATE NOT NULL)"),
+    QStringLiteral(
+        "CREATE UNIQUE INDEX idx_price_items_name ON price_items(name COLLATE NOCASE)"),
+    QStringLiteral(
+        "CREATE TABLE price_history ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        " price_item_id INTEGER NOT NULL"
+        "  REFERENCES price_items(id) ON DELETE CASCADE,"
+        " price INTEGER NOT NULL CHECK(price >= 0),"
+        " recorded_at DATE NOT NULL)"),
+    QStringLiteral(
+        "CREATE INDEX idx_price_history_item"
+        " ON price_history(price_item_id, recorded_at)"),
 };
 } // namespace
 
@@ -176,6 +207,11 @@ Result<void> DatabaseManager::migrate(QSqlDatabase& db)
         }
         if (version < 3) {
             for (const QString& sql : kV3Statements)
+                if (auto res = execOrFail(query, sql); !res)
+                    return res;
+        }
+        if (version < 4) {
+            for (const QString& sql : kV4Statements)
                 if (auto res = execOrFail(query, sql); !res)
                     return res;
         }

@@ -16,6 +16,11 @@ ColumnLayout {
     property var categories // CategoryListModel
 
     readonly property bool valid: amountField.valid && selectedCategoryId > 0
+    // True once anything has been typed or picked. The sheets use this to
+    // decide whether closing left a draft worth resuming.
+    readonly property bool hasContent: amountText.length > 0
+        || descriptionText.length > 0 || notesText.length > 0
+        || selectedCategoryId > 0
 
     function clear() {
         amountText = ""
@@ -25,6 +30,12 @@ ColumnLayout {
         date = new Date()
     }
 
+    // Puts the cursor in the first field, so opening the sheet and typing
+    // just works instead of needing a tap first.
+    function focusFirstField() {
+        amountField.forceActiveFocus()
+    }
+
     spacing: Theme.spacingM
 
     AmountField {
@@ -32,11 +43,7 @@ ColumnLayout {
         Layout.fillWidth: true
     }
 
-    Text {
-        text: qsTr("Category")
-        font.pixelSize: Theme.fontSizeCaption
-        color: Theme.mutedInk
-    }
+    FieldLabel { text: qsTr("Category") }
 
     CategoryPicker {
         id: categoryPicker
@@ -44,22 +51,43 @@ ColumnLayout {
         model: form.categories
     }
 
-    DateField {
-        id: dateField
-        Layout.alignment: Qt.AlignLeading
+    FieldLabel { text: qsTr("Date") }
+
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: Theme.spacingS
+
+        DateField {
+            id: dateField
+            Layout.fillWidth: true
+        }
+
+        // Most expenses are logged the same day or the day after; these save
+        // a trip through the calendar popup.
+        Button {
+            flat: true
+            text: qsTr("Today")
+            implicitHeight: Theme.touchTarget
+            enabled: !dateField.isToday
+            onClicked: dateField.value = new Date()
+        }
     }
 
     TextField {
         id: descriptionField
         Layout.fillWidth: true
         placeholderText: qsTr("Description")
-        implicitHeight: Theme.touchTarget
+        implicitHeight: Theme.fieldHeight
+        // "Next" on the software keyboard moves on instead of dismissing it
+        EnterKey.type: Qt.EnterKeyNext
+        onAccepted: notesField.forceActiveFocus()
     }
 
     TextField {
         id: notesField
         Layout.fillWidth: true
         placeholderText: qsTr("Notes (optional)")
-        implicitHeight: Theme.touchTarget
+        implicitHeight: Theme.fieldHeight
+        EnterKey.type: Qt.EnterKeyDone
     }
 }

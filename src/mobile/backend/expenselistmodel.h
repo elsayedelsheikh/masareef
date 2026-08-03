@@ -34,7 +34,8 @@ public:
         AmountMinorRole,
         AmountFormattedRole,
         NotesRole,
-        DateSectionRole, // ISO date string, for ListView section grouping
+        DateSectionRole,   // ISO date string, for ListView section grouping
+        DateFormattedRole, // localized short date, for compact rows
     };
     Q_ENUM(Role)
 

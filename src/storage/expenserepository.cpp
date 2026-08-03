@@ -240,8 +240,12 @@ QList<MonthTotal> monthlyTotals(int months)
     for (int i = 0; i < months; ++i) {
         MonthTotal entry;
         entry.month = firstMonth.addMonths(i);
+        // The keys come from SQLite's strftime, so they are always ASCII.
+        // QDate::toString(format) formats through the system locale, which
+        // on an Arabic device yields Arabic-Indic digits and matches
+        // nothing — every month would read zero. ISODate is locale-free.
         entry.total = Money::fromMinorUnits(
-            byMonth.value(entry.month.toString(QStringLiteral("yyyy-MM")), 0));
+            byMonth.value(entry.month.toString(Qt::ISODate).left(7), 0));
         result.append(entry);
     }
     return result;

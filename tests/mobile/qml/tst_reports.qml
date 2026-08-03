@@ -56,9 +56,11 @@ Item {
         // (Column-in-ScrollView never laid them out) so the screen looked blank.
         // A fresh screen with current-month data must produce a sized delegate.
         function test_categoryRowsRender() {
-            const today = new Date()
+            // Dated today, not a fixed day of the month: the list is bound to
+            // [1st of this month, today], so a hardcoded day fell outside the
+            // range — and the test failed — for the first days of every month.
             TestFixture.addExpense("Bills", 3500, "b",
-                Qt.formatDate(new Date(today.getFullYear(), today.getMonth(), 4), "yyyy-MM-dd"))
+                Qt.formatDate(new Date(), "yyyy-MM-dd"))
             const fresh = Qt.createQmlObject(
                 'import Masareef; ReportsScreen { anchors.fill: parent }', root)
             const list = findByName(fresh, "categoryList")

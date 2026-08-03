@@ -13,42 +13,66 @@ qt_add_qml_module(masareef_quick
     QML_FILES
         qml/Main.qml
         qml/Theme.qml
+        qml/components/ActionSheet.qml
         qml/components/AmountField.qml
+        qml/components/BillDelegate.qml
+        qml/components/BillForm.qml
+        qml/components/BottomSheet.qml
         qml/components/BudgetGauge.qml
         qml/components/CategoryPicker.qml
+        qml/components/ConfirmDialog.qml
         qml/components/DateField.qml
         qml/components/EmptyState.qml
         qml/components/ExpenseDelegate.qml
         qml/components/ExpenseForm.qml
+        qml/components/FieldLabel.qml
+        qml/components/InlineBanner.qml
         qml/components/NavBar.qml
+        qml/components/PriceItemDelegate.qml
+        qml/components/PriceItemForm.qml
+        qml/components/SearchField.qml
+        qml/components/SegmentedControl.qml
         qml/components/Snackbar.qml
         qml/components/StatCard.qml
+        qml/components/ThemedIcon.qml
         qml/sheets/AddBillSheet.qml
         qml/sheets/AddExpenseSheet.qml
+        qml/sheets/AddPriceItemSheet.qml
         qml/sheets/EditBillSheet.qml
         qml/sheets/EditExpenseSheet.qml
+        qml/sheets/EditPriceItemSheet.qml
         qml/screens/BillsScreen.qml
         qml/screens/BudgetsScreen.qml
         qml/screens/CategoryManagerScreen.qml
         qml/screens/ExpensesScreen.qml
         qml/screens/HomeScreen.qml
+        qml/screens/PriceBookScreen.qml
         qml/screens/ReportsScreen.qml
         qml/screens/SettingsScreen.qml
     RESOURCES
+        qml/icons/basket.svg
+        qml/icons/bell.svg
         qml/icons/calendar.svg
+        qml/icons/cart-plus.svg
+        qml/icons/check-square.svg
         qml/icons/check.svg
         qml/icons/chevron-left.svg
         qml/icons/chevron-right.svg
         qml/icons/close.svg
+        qml/icons/copy.svg
         qml/icons/donut.svg
         qml/icons/gear.svg
         qml/icons/home.svg
+        qml/icons/pause.svg
         qml/icons/pencil.svg
+        qml/icons/play.svg
         qml/icons/plus.svg
         qml/icons/receipt.svg
         qml/icons/search.svg
         qml/icons/tag.svg
         qml/icons/trash.svg
+        qml/icons/trending-down.svg
+        qml/icons/trending-up.svg
         qml/icons/wallet.svg
     SOURCES
         backend/appbackend.cpp
@@ -67,6 +91,10 @@ qt_add_qml_module(masareef_quick
         backend/expensecontroller.h
         backend/expenselistmodel.cpp
         backend/expenselistmodel.h
+        backend/priceitemcontroller.cpp
+        backend/priceitemcontroller.h
+        backend/pricelistmodel.cpp
+        backend/pricelistmodel.h
         backend/reportsviewmodel.cpp
         backend/reportsviewmodel.h
         backend/themecontroller.cpp
