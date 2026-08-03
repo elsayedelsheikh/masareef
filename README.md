@@ -74,16 +74,19 @@ ctest --test-dir build-qml --output-on-failure
 ./build-qml/src/mobile/masareef_mobile
 ```
 
-Verified on Fedora 43 (Qt 6.10.3, GCC 15). Android APKs still need a Qt for
-Android kit — see [Android / QML app](#android--qml-app).
+Verified on Fedora 43 with the distribution Qt (6.10.3, GCC 15). Android
+APKs still need a Qt for Android kit — see
+[Android / QML app](#android--qml-app).
 
 #### With Qt from the online installer instead
 
 If you use a Qt kit from the [online
 installer](https://www.qt.io/download-qt-installer) rather than the
-distribution packages, you need the OpenGL headers as well — the installer
-does not install system dependencies, whereas the `qt6-*-devel` RPMs pull
-them in for you:
+distribution packages, you need the OpenGL headers as well. The installer
+does not install system dependencies; the `qt6-*-devel` RPMs do, pulling in
+`libglvnd-devel` (which owns `/usr/include/GL/gl.h`) without ever naming
+it. That is the whole difference between the two paths, and it is why a
+build that works from distribution packages can still fail here:
 
 ```sh
 sudo dnf install cmake ninja-build gcc-c++ mesa-libGL-devel
@@ -98,6 +101,9 @@ problem but is a missing `/usr/include/GL/gl.h`.
 The `host-qml` preset does this for a `~/Qt/6.11.1` install, so
 `cmake --preset host-qml` works once the kit is in place. Adjust the paths
 in `CMakePresets.json` if your Qt lives elsewhere.
+
+Verified on Fedora 43 with an installer kit (Qt 6.11.1, GCC 16): configure
+through the preset, full build, 25/25 tests.
 
 If you would rather not install Qt on the host, the same build runs in a
 container:
