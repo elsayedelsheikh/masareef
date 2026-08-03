@@ -2,6 +2,7 @@
 
 #include "storage/categoryrepository.h"
 #include "utils/currencyformatter.h"
+#include "utils/localeformat.h"
 #include "utils/palette.h"
 
 #include <QSqlQuery>
@@ -44,6 +45,8 @@ QVariant ExpenseListModel::data(const QModelIndex& index, int role) const
         return row.expense.notes;
     case DateSectionRole:
         return row.expense.date.toString(Qt::ISODate);
+    case DateFormattedRole:
+        return LocaleFormat::shortDate(row.expense.date);
     default:
         return {};
     }
@@ -62,6 +65,7 @@ QHash<int, QByteArray> ExpenseListModel::roleNames() const
         { AmountFormattedRole, "amountFormatted" },
         { NotesRole, "notes" },
         { DateSectionRole, "dateSection" },
+        { DateFormattedRole, "dateFormatted" },
     };
 }
 
@@ -131,6 +135,15 @@ int ExpenseListModel::expenseIdAt(int row) const
     if (row < 0 || row >= m_rows.size())
         return -1;
     return m_rows.at(row).expense.id;
+}
+
+int ExpenseListModel::rowForExpenseId(int expenseId) const
+{
+    for (qsizetype row = 0; row < m_rows.size(); ++row) {
+        if (m_rows.at(row).expense.id == expenseId)
+            return int(row);
+    }
+    return -1;
 }
 
 QVariantMap ExpenseListModel::get(int row) const

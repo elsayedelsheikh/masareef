@@ -2,6 +2,7 @@
 
 #include "storage/billrepository.h"
 #include "utils/currencyformatter.h"
+#include "utils/localeformat.h"
 
 namespace {
 
@@ -28,14 +29,6 @@ Result<RecurringBill> validated(int categoryId, const QString& amountText,
     bill.recurrence = recurrence;
     bill.notes = notes.trimmed();
     return bill;
-}
-
-// Ungrouped "1234.50" for the edit field.
-QString editableAmountText(Money amount)
-{
-    return QStringLiteral("%1.%2")
-        .arg(amount.minorUnits() / 100)
-        .arg(amount.minorUnits() % 100, 2, 10, QLatin1Char('0'));
 }
 
 } // namespace
@@ -124,6 +117,10 @@ bool BillController::setActive(int id, bool active)
         return false;
     }
     setLastError({});
+    // Pausing moves a bill in and out of the list, so it has to announce
+    // itself like any other edit — without this the row stays on screen
+    // until something else happens to refresh the model.
+    emit billUpdated(id);
     return true;
 }
 
@@ -136,7 +133,7 @@ bool BillController::load(int id)
     }
 
     m_editCategoryId = bill->categoryId;
-    m_editAmountText = editableAmountText(bill->amount);
+    m_editAmountText = LocaleFormat::amountForEditing(bill->amount);
     m_editName = bill->name;
     m_editNextDue = bill->nextDue;
     m_editRecurrence = bill->recurrence;

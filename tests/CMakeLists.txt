@@ -10,7 +10,9 @@ set(MASAREEF_TESTS
     expensemodel
     billrepository
     budgetrepository
+    priceitemrepository
     backupmanager
+    localeformat
 )
 
 foreach(name IN LISTS MASAREEF_TESTS)

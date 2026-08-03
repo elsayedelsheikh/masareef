@@ -16,21 +16,22 @@ ApplicationWindow {
     Material.primary: Theme.primary
     Material.accent: Theme.accent
 
+    // Every sheet the back button has to dismiss before it may leave the
+    // app. Listed once so adding a sheet cannot silently forget to handle
+    // back — which on a phone means the app exiting mid-entry.
+    readonly property var sheets: [addSheet, editSheet, addBillSheet,
+                                   editBillSheet, addPriceSheet, editPriceSheet]
+
     // Android back button: close sheets / leave sub-pages before exiting
     onClosing: (close) => {
-        if (addSheet.opened) {
-            addSheet.close()
-            close.accepted = false
-        } else if (editSheet.opened) {
-            editSheet.close()
-            close.accepted = false
-        } else if (addBillSheet.opened) {
-            addBillSheet.close()
-            close.accepted = false
-        } else if (editBillSheet.opened) {
-            editBillSheet.close()
-            close.accepted = false
-        } else if (stack.depth > 1) {
+        for (const sheet of window.sheets) {
+            if (sheet.opened) {
+                sheet.close()
+                close.accepted = false
+                return
+            }
+        }
+        if (stack.depth > 1) {
             stack.pop()
             close.accepted = false
         }
@@ -64,6 +65,9 @@ ApplicationWindow {
     }
     BillListModel { id: billsModel }
 
+    PriceItemController { id: priceItemController }
+    PriceListModel { id: pricesModel }
+
     Connections {
         target: AppBackend
         // A restore swaps the database file out from under every model.
@@ -73,6 +77,7 @@ ApplicationWindow {
             budgetsModel.refresh()
             categoriesModel.refresh()
             billsModel.refresh()
+            pricesModel.refresh()
         }
     }
 
@@ -90,13 +95,33 @@ ApplicationWindow {
             categoriesModel.refresh()
             budgetsModel.refresh()
             dashboardModel.refresh()
+            billsModel.refresh()
+            pricesModel.refresh()
+        }
+    }
+
+    Connections {
+        target: AppBackend
+        // Every model formats its own dates and amounts, so a language
+        // switch has to go back through them — a retranslate only reaches
+        // the qsTr() strings in QML.
+        function onLanguageChanged() {
+            expensesModel.refresh()
+            dashboardModel.refresh()
+            budgetsModel.refresh()
+            billsModel.refresh()
+            pricesModel.refresh()
         }
     }
 
     Connections {
         target: categoriesModel
-        // Renames/recolors show up in expense rows and budgets
-        function onCountChanged() { expenseController.refreshAll() }
+        // Renames/recolors show up in expense rows, budgets and prices
+        function onCountChanged() {
+            expenseController.refreshAll()
+            billsModel.refresh()
+            pricesModel.refresh()
+        }
     }
 
     AddExpenseSheet {
@@ -119,6 +144,16 @@ ApplicationWindow {
         controller: billController
     }
 
+    AddPriceItemSheet {
+        id: addPriceSheet
+        controller: priceItemController
+    }
+
+    EditPriceItemSheet {
+        id: editPriceSheet
+        controller: priceItemController
+    }
+
     StackView {
         id: stack
         anchors.fill: parent
@@ -134,6 +169,38 @@ ApplicationWindow {
 
         Page {
             background: Rectangle { color: Theme.surface }
+
+            Connections {
+                target: editPriceSheet
+                // The sheet never opened, so its own banner would never be
+                // seen — the message belongs back on the screen that asked
+                // for it.
+                function onOpenFailed(message) {
+                    priceBookScreen.errorMessage = message
+                }
+            }
+
+            // editSheet is shared by the Home and Expenses tabs and
+            // editBillSheet's own screen keeps its snackbar private, so a
+            // failed load surfaces here instead of on a screen that may not
+            // even be the current tab.
+            Snackbar {
+                id: sheetErrorSnackbar
+            }
+
+            Connections {
+                target: editSheet
+                function onOpenFailed(message) {
+                    sheetErrorSnackbar.show(message)
+                }
+            }
+
+            Connections {
+                target: editBillSheet
+                function onOpenFailed(message) {
+                    sheetErrorSnackbar.show(message)
+                }
+            }
 
             StackLayout {
                 anchors.fill: parent
@@ -153,10 +220,18 @@ ApplicationWindow {
                 BillsScreen {
                     controller: billController
                     model: billsModel
-                    onEditRequested: (billId) => {
-                        editBillSheet.billId = billId
-                        editBillSheet.open()
-                    }
+                    onEditRequested: (billId) => editBillSheet.openFor(billId)
+                }
+                PriceBookScreen {
+                    id: priceBookScreen
+                    controller: priceItemController
+                    model: pricesModel
+                    onEditRequested: (priceItemId, previousPrice) =>
+                        editPriceSheet.openFor(priceItemId, previousPrice)
+                    onLogExpenseRequested: (categoryId, amountText, description) =>
+                        addSheet.openPrefilled(categoryId, amountText, description)
+                    onDuplicateRequested: (name, categoryId, unit, priceText) =>
+                        addPriceSheet.openCopyOf(name, categoryId, unit, priceText)
                 }
                 BudgetsScreen {
                     budgets: budgetsModel
@@ -173,13 +248,18 @@ ApplicationWindow {
             RoundButton {
                 id: fab
 
+                // What "+" means depends on the tab: an expense on
+                // Home/Expenses, a bill on Bills, a price on Prices. The
+                // tabs with nothing to add hide it rather than adding
+                // whatever the previous tab would have.
+                readonly property int addsOnTab: navBar.currentIndex
+
                 anchors {
                     right: parent.right
                     bottom: parent.bottom
                     margins: Theme.spacingL
                 }
-                // Home/Expenses add an expense; the Bills tab adds a bill.
-                visible: navBar.currentIndex <= 2
+                visible: addsOnTab <= 3
                 width: 60
                 height: 60
                 icon.source: "icons/plus.svg"
@@ -187,7 +267,19 @@ ApplicationWindow {
                 icon.height: 26
                 Material.background: Theme.accent
                 Material.foreground: "#ffffff"
-                onClicked: navBar.currentIndex === 2 ? addBillSheet.open() : addSheet.open()
+                onClicked: {
+                    switch (addsOnTab) {
+                    case 2:
+                        addBillSheet.open()
+                        break
+                    case 3:
+                        addPriceSheet.open()
+                        break
+                    default:
+                        addSheet.open()
+                        break
+                    }
+                }
             }
         }
     }

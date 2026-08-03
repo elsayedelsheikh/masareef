@@ -3,9 +3,10 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import Masareef
 
-// One expense row: category dot, description, category + amount. Tap to
-// edit; swipe fully in either direction to delete (RTL-agnostic).
-// Supports optional long-press selection mode.
+// One expense row: category dot, description, category + amount.
+//
+// Tap to edit, long-press for the action sheet (edit / duplicate / select /
+// delete), swipe fully in either direction to delete (RTL-agnostic).
 SwipeDelegate {
     id: delegate
 
@@ -23,11 +24,25 @@ SwipeDelegate {
     signal editRequested(int expenseId)
     signal removeRequested(int index)
     signal selectionToggled(int index)
+    signal menuRequested(int index)
 
     width: ListView.view ? ListView.view.width : implicitWidth
-    implicitHeight: Math.max(Theme.touchTarget + 12, content.implicitHeight + 2 * Theme.spacingS)
+    implicitHeight: Math.max(Theme.touchTarget + 12,
+                             content.implicitHeight + 2 * Theme.spacingS)
+    padding: Theme.spacingS
+
+    // A long press still ends in a release, which SwipeDelegate reports as
+    // a click — so without this the long press would be undone by the tap
+    // that ends it (in selection mode) or open a sheet on top of the
+    // actions. Cleared on every new press, in case the finger is lifted
+    // outside the row.
+    property bool _longPressed: false
+
+    onPressedChanged: if (pressed) _longPressed = false
 
     onClicked: {
+        if (delegate._longPressed)
+            return
         if (selectionMode)
             selectionToggled(index)
         else
@@ -36,8 +51,14 @@ SwipeDelegate {
 
     TapHandler {
         acceptedButtons: Qt.LeftButton
+        // In selection mode a long press keeps extending the selection;
+        // otherwise it opens the row's actions.
         onLongPressed: {
-            delegate.selectionToggled(index)
+            delegate._longPressed = true
+            if (delegate.selectionMode)
+                delegate.selectionToggled(delegate.index)
+            else
+                delegate.menuRequested(delegate.index)
         }
     }
 
@@ -51,10 +72,18 @@ SwipeDelegate {
         spacing: Theme.spacingM
 
         Rectangle {
-            width: 12
-            height: 12
+            Layout.alignment: Qt.AlignVCenter
+            implicitWidth: 12
+            implicitHeight: 12
             radius: 6
-            color: delegate.categoryColor
+            color: delegate.isSelected ? Theme.primary : delegate.categoryColor
+
+            Behavior on color {
+                ColorAnimation {
+                    duration: Theme.durationFast
+                    easing.type: Theme.easing
+                }
+            }
         }
 
         ColumnLayout {
@@ -99,6 +128,16 @@ SwipeDelegate {
     }
 
     background: Rectangle {
-        color: delegate.isSelected ? Theme.gridline : (delegate.down ? Theme.gridline : "transparent")
+        radius: Theme.radiusS
+        color: delegate.isSelected ? Theme.primaryTint
+             : delegate.down ? Theme.pressedTint
+             : "transparent"
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.durationFast
+                easing.type: Theme.easing
+            }
+        }
     }
 }

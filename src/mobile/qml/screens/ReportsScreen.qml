@@ -130,8 +130,8 @@ Item {
 
                 Rectangle {
                     Layout.leftMargin: Theme.spacingM
-                    width: 12
-                    height: 12
+                    implicitWidth: 12
+                    implicitHeight: 12
                     radius: 2
                     color: modelData.categoryColor
                 }

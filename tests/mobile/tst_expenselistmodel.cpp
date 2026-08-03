@@ -24,6 +24,7 @@ private slots:
     void removeAt_deletesRowAndUpdatesTotal();
     void removeAt_invalidRowFails();
     void expenseIdAt_returnsIdOrMinusOne();
+    void rowForExpenseId_findsTheRowOrReportsMinusOne();
     void refresh_picksUpExternalChanges();
     void categoryColor_followsPaletteMode();
     void get_returnsRoleMap();
@@ -240,6 +241,22 @@ void TestExpenseListModel::expenseIdAt_returnsIdOrMinusOne()
     QCOMPARE(model.expenseIdAt(0), id);
     QCOMPARE(model.expenseIdAt(1), -1);
     QCOMPARE(model.expenseIdAt(-1), -1);
+}
+
+void TestExpenseListModel::rowForExpenseId_findsTheRowOrReportsMinusOne()
+{
+    // Two days, so the rows are ordered newest first and the second expense
+    // is not simply at row 0.
+    const int older = addExpense(m_billsId, 1000, QStringLiteral("Water"),
+                                 QDate(2026, 6, 1));
+    const int newer = addExpense(m_billsId, 2000, QStringLiteral("Gas"),
+                                 QDate(2026, 6, 2));
+
+    ExpenseListModel model;
+    QCOMPARE(model.rowCount(), 2);
+    QCOMPARE(model.expenseIdAt(model.rowForExpenseId(older)), older);
+    QCOMPARE(model.expenseIdAt(model.rowForExpenseId(newer)), newer);
+    QCOMPARE(model.rowForExpenseId(4242), -1);
 }
 
 void TestExpenseListModel::refresh_picksUpExternalChanges()

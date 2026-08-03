@@ -3,137 +3,100 @@ import QtQuick.Controls.Material
 import QtQuick.Layouts
 import Masareef
 
-// Bottom sheet for editing a recurring bill.
-Drawer {
+// Bottom sheet for editing a recurring bill. Call openFor(id).
+BottomSheet {
     id: sheet
 
     property BillController controller
     property int billId: -1
 
-    property alias amountText: amountField.text
-    property alias nameText: nameField.text
-    property alias nextDueDate: dateField.value
-    property alias selectedCategoryId: categoryPicker.selectedCategoryId
-    property alias selectedRecurrence: recurrenceCombo.currentIndex
-    property alias notesText: notesField.text
-    readonly property bool canSave: amountText && nameText && nextDueDate &&
-                                     selectedCategoryId > 0
+    property alias amountText: form.amountText
+    property alias nameText: form.nameText
+    property alias nextDueDate: form.nextDueDate
+    property alias selectedCategoryId: form.selectedCategoryId
+    property alias selectedRecurrence: form.selectedRecurrence
+    property alias notesText: form.notesText
+    readonly property bool canSave: form.valid
+    property string errorMessage: ""
+
+    // The load failed, so this sheet never opens and its own banner would
+    // never be seen — whoever asked for it has to say so instead.
+    signal openFailed(string message)
+
+    function openFor(id) {
+        if (!controller)
+            return
+        errorMessage = ""
+        categoriesModel.refresh()
+        // Load before committing to the id: if the bill is gone (deleted on
+        // another screen) the sheet must not open bound to nothing.
+        if (!controller.load(id)) {
+            openFailed(controller.lastError)
+            return
+        }
+        billId = id
+        form.amountText = controller.editAmountText
+        form.nameText = controller.editName
+        form.selectedCategoryId = controller.editCategoryId
+        form.selectedRecurrence = form.segmentFor(controller.editRecurrence)
+        form.notesText = controller.editNotes
+        form.nextDueDate = controller.editNextDue
+        open()
+    }
 
     function save() {
         if (!canSave || !controller || billId <= 0)
             return
-        // selectedRecurrence is the combo index, matching the Recurrence enum
-        // order (Monthly=0, Quarterly=1, Yearly=2); QML marshals the int.
-        if (controller.update(billId, selectedCategoryId, amountText, nameText,
-                              nextDueDate, selectedRecurrence, notesText))
+        if (controller.update(billId, form.selectedCategoryId, form.amountText,
+                              form.nameText, form.nextDueDate,
+                              form.recurrenceFor(form.selectedRecurrence),
+                              form.notesText))
             close()
+        else
+            errorMessage = controller.lastError
     }
 
-    edge: Qt.BottomEdge
-    width: parent ? parent.width : 412
-    height: Math.min(contentColumn.implicitHeight + 2 * Theme.spacingL,
-                     parent ? parent.height * 0.9 : 800)
-    Material.roundedScale: Material.LargeScale
-
-    onAboutToShow: {
-        if (billId > 0 && controller) {
-            controller.load(billId)
-            amountText = controller.editAmountText
-            nameText = controller.editName
-            selectedCategoryId = controller.editCategoryId
-            selectedRecurrence = controller.editRecurrence
-            notesText = controller.editNotes
-            nextDueDate = controller.editNextDue
-        }
-        categoriesModel.refresh()
+    function removeBill() {
+        if (!controller || billId <= 0)
+            return
+        if (controller.remove(billId))
+            close()
+        else
+            errorMessage = controller.lastError
     }
+
+    heading: qsTr("Edit bill")
+    acceptEnabled: canSave
+    deletable: true
+
+    onAccepted: save()
+    onCancelled: close()
+    onDeleteRequested: confirmDelete.open()
 
     CategoryListModel {
         id: categoriesModel
     }
 
-    Connections {
-        target: sheet.controller
-
-        function onEditLoaded() {
-            amountText = controller.editAmountText
-            nameText = controller.editName
-            selectedCategoryId = controller.editCategoryId
-            selectedRecurrence = controller.editRecurrence
-            notesText = controller.editNotes
-            nextDueDate = controller.editNextDue
-        }
+    ConfirmDialog {
+        id: confirmDelete
+        heading: qsTr("Delete this bill?")
+        message: qsTr("Expenses already logged for it are kept.")
+        confirmText: qsTr("Delete")
+        destructive: true
+        onConfirmed: sheet.removeBill()
     }
 
-    ColumnLayout {
-        id: contentColumn
-        anchors.fill: parent
-        anchors.margins: Theme.spacingL
-        spacing: Theme.spacingM
+    InlineBanner {
+        Layout.fillWidth: true
+        visible: sheet.errorMessage.length > 0
+        message: sheet.errorMessage
+        tint: Theme.criticalTint
+        ink: Theme.critical
+    }
 
-        Text {
-            text: qsTr("Edit bill")
-            font.pixelSize: Theme.fontSizeTitle
-            font.weight: Font.DemiBold
-            color: Theme.primaryInk
-        }
-
-        CategoryPicker {
-            id: categoryPicker
-            Layout.fillWidth: true
-            model: categoriesModel
-        }
-
-        TextField {
-            id: nameField
-            Layout.fillWidth: true
-            placeholderText: qsTr("Bill name")
-            implicitHeight: Theme.touchTarget
-        }
-
-        AmountField {
-            id: amountField
-            Layout.fillWidth: true
-        }
-
-        DateField {
-            id: dateField
-            Layout.fillWidth: true
-        }
-
-        ComboBox {
-            id: recurrenceCombo
-            Layout.fillWidth: true
-            model: [qsTr("Monthly"), qsTr("Quarterly"), qsTr("Yearly")]
-            currentIndex: 0
-        }
-
-        TextField {
-            id: notesField
-            Layout.fillWidth: true
-            placeholderText: qsTr("Notes (optional)")
-            implicitHeight: Theme.touchTarget
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Theme.spacingM
-
-            Button {
-                Layout.fillWidth: true
-                flat: true
-                text: qsTr("Cancel")
-                implicitHeight: Theme.touchTarget
-                onClicked: sheet.close()
-            }
-            Button {
-                Layout.fillWidth: true
-                highlighted: true
-                enabled: sheet.canSave
-                text: qsTr("Save")
-                implicitHeight: Theme.touchTarget
-                onClicked: sheet.save()
-            }
-        }
+    BillForm {
+        id: form
+        Layout.fillWidth: true
+        categories: categoriesModel
     }
 }

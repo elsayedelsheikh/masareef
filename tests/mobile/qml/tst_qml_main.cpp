@@ -1,5 +1,6 @@
 #include "../testutils.h"
 
+#include "backend/qmltypes.h"
 #include "storage/expenserepository.h"
 
 #include <QQmlContext>
@@ -48,6 +49,9 @@ class Setup : public QObject {
 public slots:
     void applicationAvailable()
     {
+        // The same hand-written registrations the app makes, so the QML
+        // under test sees the module the app sees.
+        MasareefQml::registerTypes();
         TestUtils::enableTestMode();
         TestUtils::isolateSettings();
         QVERIFY(TestUtils::resetDatabase());

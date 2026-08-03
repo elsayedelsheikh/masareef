@@ -1,5 +1,6 @@
 #pragma once
 
+#include <QDate>
 #include <QObject>
 #include <QTranslator>
 #include <QtQml/qqmlregistration.h>
@@ -41,8 +42,26 @@ public:
 
     Q_INVOKABLE QString formatMoney(qint64 minorUnits) const;
     Q_INVOKABLE QString formatMoneyPlain(qint64 minorUnits) const;
+    // Ungrouped "1234.50", safe to put back into an amount field
+    Q_INVOKABLE QString amountForEditing(qint64 minorUnits) const;
     // -1 when the text is not a valid non-negative amount
     Q_INVOKABLE qint64 parseMoney(const QString& text) const;
+
+    // Dates, in the UI language and always with Western digits. QML's
+    // Date.toLocaleDateString() would use the process locale and Arabic-Indic
+    // numerals, which disagree with the amounts shown beside them.
+    //
+    // These are plain calls, not properties, so a binding that uses one does
+    // not re-evaluate on a language switch by itself — read `localeName`
+    // alongside it (or refresh the model that owns the row).
+    Q_INVOKABLE QString formatDate(QDate date) const;
+    Q_INVOKABLE QString formatDateShort(QDate date) const;
+    Q_INVOKABLE QString formatMonthYear(QDate date) const;
+    Q_INVOKABLE QString formatRelativeDate(QDate date) const;
+    Q_INVOKABLE QString formatDueLabel(QDate nextDue) const;
+    // ListView section keys are ISO date strings; this turns one back into
+    // the "Today" / "15 January 2026" header label.
+    Q_INVOKABLE QString formatDateSection(const QString& isoDate) const;
 
     // Backup and restore. backupNow() closes the DB, copies it, reopens.
     // restore() validates, backs up current DB, replaces with the source,

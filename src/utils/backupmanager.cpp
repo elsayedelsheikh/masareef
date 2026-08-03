@@ -5,6 +5,7 @@
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
+#include <QLocale>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QVariant>
@@ -12,10 +13,15 @@
 namespace {
 constexpr int kBackupsToKeep = 10;
 
+// QDateTime::toString(format) formats through the system locale, which on
+// an Arabic device writes Arabic-Indic digits into the file name. Backups
+// are pruned by sorting on that name, so a device that changes locale would
+// end up with two orderings and prune the wrong file. QLocale::c() pins it.
 QString timestampedBackupName()
 {
     return QStringLiteral("masareef-%1.db")
-        .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd-HHmmss")));
+        .arg(QLocale::c().toString(QDateTime::currentDateTime(),
+                                   QStringLiteral("yyyyMMdd-HHmmss")));
 }
 
 void pruneOldBackups(int keep)

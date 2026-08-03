@@ -2,14 +2,18 @@ import QtQuick
 import QtQuick.Controls.Material
 import Masareef
 
-// Category choice chips. Set allowAll to show a leading "All" chip that
-// maps to categoryId -1 (used by the expense list filter).
+// Category choice chips.
+//
+// `allowAll` prepends an "All" chip mapping to categoryId -1 (the expense
+// list filter); `allowNone` prepends "Uncategorized", also -1, for the price
+// book, where an item does not have to belong to a category.
 Flow {
     id: picker
 
     property var model // CategoryListModel
     property int selectedCategoryId: -1
     property bool allowAll: false
+    property bool allowNone: false
     property int excludeCategoryId: -1
 
     spacing: Theme.spacingS
@@ -27,9 +31,16 @@ Flow {
         radius: height / 2
         height: 40
         width: chipRow.implicitWidth + 2 * Theme.spacingM
-        color: selected ? Qt.alpha(Theme.primary, 0.18) : "transparent"
+        color: selected ? Theme.primaryTint : "transparent"
         border.color: selected ? Theme.primary : Theme.gridline
-        border.width: 1
+        border.width: selected ? 2 : 1
+
+        Behavior on color {
+            ColorAnimation {
+                duration: Theme.durationFast
+                easing.type: Theme.easing
+            }
+        }
 
         Row {
             id: chipRow
@@ -48,6 +59,7 @@ Flow {
                 id: chipLabel
                 anchors.verticalCenter: parent.verticalCenter
                 font.pixelSize: Theme.fontSizeBody
+                font.weight: chip.selected ? Font.DemiBold : Font.Normal
                 color: chip.selected ? Theme.primary : Theme.primaryInk
             }
         }
@@ -61,6 +73,12 @@ Flow {
         visible: picker.allowAll
         chipCategoryId: -1
         label: qsTr("All")
+    }
+
+    Chip {
+        visible: picker.allowNone
+        chipCategoryId: -1
+        label: qsTr("Uncategorized")
     }
 
     Repeater {

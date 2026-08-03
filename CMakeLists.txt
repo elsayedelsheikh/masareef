@@ -36,6 +36,8 @@ add_library(masareef_core STATIC
     src/storage/billrepository.h
     src/storage/budgetrepository.cpp
     src/storage/budgetrepository.h
+    src/storage/priceitemrepository.cpp
+    src/storage/priceitemrepository.h
     src/models/expensemodel.cpp
     src/models/expensemodel.h
     src/models/categorymodel.cpp
@@ -44,6 +46,8 @@ add_library(masareef_core STATIC
     src/utils/appconfig.h
     src/utils/currencyformatter.cpp
     src/utils/currencyformatter.h
+    src/utils/localeformat.cpp
+    src/utils/localeformat.h
     src/utils/backupmanager.cpp
     src/utils/backupmanager.h
     src/utils/palette.cpp

@@ -18,8 +18,9 @@ Item {
         name: "NavBar"
         when: windowShown
 
-        function test_hasFiveTabs() {
-            compare(navBar.count, 5)
+        function test_hasATabPerScreen() {
+            // Home, Expenses, Bills, Prices, Budgets, Settings
+            compare(navBar.count, 6)
         }
 
         function test_clickSwitchesTab() {

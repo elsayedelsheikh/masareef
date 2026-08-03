@@ -10,6 +10,8 @@ set(MASAREEF_MOBILE_TESTS
     reportsviewmodel
     billcontroller
     billlistmodel
+    priceitemcontroller
+    pricelistmodel
 )
 
 find_package(Qt6 REQUIRED COMPONENTS QuickTest)
