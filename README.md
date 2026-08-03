@@ -74,11 +74,30 @@ ctest --test-dir build-qml --output-on-failure
 ./build-qml/src/mobile/masareef_mobile
 ```
 
-Note the explicit `-DMASAREEF_BUILD_QML=ON` rather than the `host-qml`
-preset: that preset hardcodes `/opt/Qt/6.11.0/gcc_64` and `g++-13`, neither
-of which exists on a stock Fedora. Verified on Fedora 43 (Qt 6.10.3,
-GCC 15). Android APKs still need a Qt for Android kit — see
-[Android / QML app](#android--qml-app).
+Verified on Fedora 43 (Qt 6.10.3, GCC 15). Android APKs still need a Qt for
+Android kit — see [Android / QML app](#android--qml-app).
+
+#### With Qt from the online installer instead
+
+If you use a Qt kit from the [online
+installer](https://www.qt.io/download-qt-installer) rather than the
+distribution packages, you need the OpenGL headers as well — the installer
+does not install system dependencies, whereas the `qt6-*-devel` RPMs pull
+them in for you:
+
+```sh
+sudo dnf install cmake ninja-build gcc-c++ mesa-libGL-devel
+cmake -S . -B build-qml -G Ninja -DMASAREEF_BUILD_QML=ON \
+      -DCMAKE_PREFIX_PATH=$HOME/Qt/6.11.1/gcc_64
+```
+
+Without `mesa-libGL-devel`, configure fails with `Qt6Gui could not be found
+because dependency WrapOpenGL could not be found` — which reads like a Qt
+problem but is a missing `/usr/include/GL/gl.h`.
+
+The `host-qml` preset does this for a `~/Qt/6.11.1` install, so
+`cmake --preset host-qml` works once the kit is in place. Adjust the paths
+in `CMakePresets.json` if your Qt lives elsewhere.
 
 If you would rather not install Qt on the host, the same build runs in a
 container:
@@ -101,7 +120,7 @@ too old** — Ubuntu 24.10 and later (Qt 6.6+) are fine. On 24.04, install Qt
 via the [online installer](https://www.qt.io/download-qt-installer) or
 [aqtinstall](https://github.com/miurahr/aqtinstall) and point
 `CMAKE_PREFIX_PATH` at it (or use the `host-qml` preset, which does this
-for a `/opt/Qt` install — see below).
+for a `~/Qt` install — see below).
 
 ## Building
 
@@ -160,7 +179,7 @@ If the system Qt is older than 6.5 (e.g. Ubuntu 24.04 LTS), the `desktop`
 preset still works — just point it at an installer kit:
 
 ```sh
-cmake --preset desktop -DCMAKE_PREFIX_PATH=/opt/Qt/6.11.0/gcc_64
+cmake --preset desktop -DCMAKE_PREFIX_PATH=$HOME/Qt/6.11.1/gcc_64
 cmake --build --preset desktop -j$(nproc)
 ```
 

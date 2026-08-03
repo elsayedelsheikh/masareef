@@ -7,7 +7,7 @@
             "binaryDir": "${sourceDir}/build-desktop",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_COMPILER": "g++-13"
+                "CMAKE_CXX_COMPILER": "g++"
             }
         },
         {
@@ -16,8 +16,8 @@
             "binaryDir": "${sourceDir}/build-qml",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_CXX_COMPILER": "g++-13",
-                "CMAKE_PREFIX_PATH": "/opt/Qt/6.11.0/gcc_64",
+                "CMAKE_CXX_COMPILER": "g++",
+                "CMAKE_PREFIX_PATH": "$env{HOME}/Qt/6.11.1/gcc_64",
                 "MASAREEF_BUILD_QML": "ON"
             }
         },
@@ -27,8 +27,8 @@
             "binaryDir": "${sourceDir}/build-android",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_TOOLCHAIN_FILE": "/opt/Qt/6.11.0/android_arm64_v8a/lib/cmake/Qt6/qt.toolchain.cmake",
-                "QT_HOST_PATH": "/opt/Qt/6.11.0/gcc_64",
+                "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/Qt/6.11.1/android_arm64_v8a/lib/cmake/Qt6/qt.toolchain.cmake",
+                "QT_HOST_PATH": "$env{HOME}/Qt/6.11.1/gcc_64",
                 "ANDROID_SDK_ROOT": "$env{HOME}/Android/Sdk",
                 "ANDROID_NDK_ROOT": "$env{HOME}/Android/Sdk/ndk/27.2.12479018"
             }
@@ -39,8 +39,8 @@
             "binaryDir": "${sourceDir}/build-android-x86_64",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_TOOLCHAIN_FILE": "/opt/Qt/6.11.0/android_x86_64/lib/cmake/Qt6/qt.toolchain.cmake",
-                "QT_HOST_PATH": "/opt/Qt/6.11.0/gcc_64",
+                "CMAKE_TOOLCHAIN_FILE": "$env{HOME}/Qt/6.11.1/android_x86_64/lib/cmake/Qt6/qt.toolchain.cmake",
+                "QT_HOST_PATH": "$env{HOME}/Qt/6.11.1/gcc_64",
                 "ANDROID_SDK_ROOT": "$env{HOME}/Android/Sdk",
                 "ANDROID_NDK_ROOT": "$env{HOME}/Android/Sdk/ndk/27.2.12479018"
             }
