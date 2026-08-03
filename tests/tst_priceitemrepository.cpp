@@ -26,6 +26,9 @@ private slots:
     void update_exposesThePreviousPrice();
     void update_reportsTheDirectionOfTheChange();
     void update_rejectsAnUnknownId();
+    void update_rejectsANameTakenByAnotherItem();
+    void update_rejectsAnEmptyNameOrNegativePrice();
+    void update_keepsTheDateWhenOnlyTheNameChanges();
 
     void remove_takesHistoryWithIt();
     void remove_reportsAnUnknownId();
@@ -168,7 +171,7 @@ void TestPriceItemRepository::all_reportsNoPreviousPriceForANewItem()
 
     const QList<PriceItem> items = PriceItemRepository::all();
     QCOMPARE(items.size(), 1);
-    QVERIFY(!items.at(0).hasPreviousPrice);
+    QVERIFY(!items.at(0).previousPrice.has_value());
     QVERIFY(!items.at(0).priceRose());
     QVERIFY(!items.at(0).priceFell());
 }
@@ -180,7 +183,9 @@ void TestPriceItemRepository::update_recordsHistoryOnlyForAPriceChange()
     QCOMPARE(TestUtils::countRows(QStringLiteral("price_history")), 1);
 
     // A rename is not a price movement.
-    PriceItem renamed = *PriceItemRepository::fetch(id);
+    const Result<PriceItem> stored = PriceItemRepository::fetch(id);
+    QVERIFY(stored.has_value());
+    PriceItem renamed = *stored;
     renamed.name = QStringLiteral("Fresh milk");
     VERIFY_OK(PriceItemRepository::update(renamed));
     QCOMPARE(TestUtils::countRows(QStringLiteral("price_history")), 1);
@@ -198,14 +203,15 @@ void TestPriceItemRepository::update_exposesThePreviousPrice()
     const Result<PriceItem> fetched = PriceItemRepository::fetch(id);
     QVERIFY(fetched.has_value());
     QCOMPARE(fetched->price.minorUnits(), 5000);
-    QVERIFY(fetched->hasPreviousPrice);
-    QCOMPARE(fetched->previousPrice.minorUnits(), 4000);
+    QVERIFY(fetched->previousPrice.has_value());
+    QCOMPARE(fetched->previousPrice->minorUnits(), 4000);
 
     // A third change reports the second price, not the first.
     setPrice(id, 5500);
     const Result<PriceItem> again = PriceItemRepository::fetch(id);
     QVERIFY(again.has_value());
-    QCOMPARE(again->previousPrice.minorUnits(), 5000);
+    QVERIFY(again->previousPrice.has_value());
+    QCOMPARE(again->previousPrice->minorUnits(), 5000);
 }
 
 void TestPriceItemRepository::update_reportsTheDirectionOfTheChange()
@@ -236,6 +242,87 @@ void TestPriceItemRepository::update_rejectsAnUnknownId()
     missing.name = QStringLiteral("Ghost");
     missing.price = Money::fromMinorUnits(100);
     QVERIFY(!PriceItemRepository::update(missing));
+}
+
+void TestPriceItemRepository::update_rejectsANameTakenByAnotherItem()
+{
+    const int milk = add(QStringLiteral("Milk"), QStringLiteral("litre"), 4000);
+    const int rice = add(QStringLiteral("Rice"), QStringLiteral("kg"), 3000);
+    QVERIFY(milk > 0);
+    QVERIFY(rice > 0);
+
+    // The name index is case-insensitive, so "milk" collides with "Milk".
+    const Result<PriceItem> stored = PriceItemRepository::fetch(rice);
+    QVERIFY(stored.has_value());
+    PriceItem renamed = *stored;
+    renamed.name = QStringLiteral("milk");
+    QVERIFY(!PriceItemRepository::update(renamed));
+
+    // The rejected rename must leave the row exactly as it was.
+    const Result<PriceItem> unchanged = PriceItemRepository::fetch(rice);
+    QVERIFY(unchanged.has_value());
+    QCOMPARE(unchanged->name, QStringLiteral("Rice"));
+    QCOMPARE(unchanged->price.minorUnits(), 3000);
+}
+
+void TestPriceItemRepository::update_rejectsAnEmptyNameOrNegativePrice()
+{
+    const int id = add(QStringLiteral("Milk"), QStringLiteral("litre"), 4000);
+    QVERIFY(id > 0);
+
+    const Result<PriceItem> stored = PriceItemRepository::fetch(id);
+    QVERIFY(stored.has_value());
+
+    PriceItem blank = *stored;
+    blank.name = QStringLiteral("   ");
+    QVERIFY(!PriceItemRepository::update(blank));
+
+    PriceItem negative = *stored;
+    negative.price = Money::fromMinorUnits(-1);
+    QVERIFY(!PriceItemRepository::update(negative));
+
+    const Result<PriceItem> unchanged = PriceItemRepository::fetch(id);
+    QVERIFY(unchanged.has_value());
+    QCOMPARE(unchanged->name, QStringLiteral("Milk"));
+    QCOMPARE(unchanged->price.minorUnits(), 4000);
+    // Neither rejection may have appended to the history.
+    QCOMPARE(TestUtils::countRows(QStringLiteral("price_history")), 1);
+}
+
+// updated_at answers "when was this price last checked", so an edit that
+// does not touch the price must not move it forward.
+void TestPriceItemRepository::update_keepsTheDateWhenOnlyTheNameChanges()
+{
+    const QDate lastChecked = QDate::currentDate().addDays(-30);
+    PriceItem item;
+    item.name = QStringLiteral("Milk");
+    item.unit = QStringLiteral("litre");
+    item.price = Money::fromMinorUnits(4000);
+    item.updatedAt = lastChecked;
+    const Result<int> added = PriceItemRepository::add(item);
+    QVERIFY(added.has_value());
+
+    const Result<PriceItem> stored = PriceItemRepository::fetch(*added);
+    QVERIFY(stored.has_value());
+    QCOMPARE(stored->updatedAt, lastChecked);
+
+    PriceItem renamed = *stored;
+    renamed.name = QStringLiteral("Fresh milk");
+    renamed.unit = QStringLiteral("carton");
+    VERIFY_OK(PriceItemRepository::update(renamed));
+
+    const Result<PriceItem> afterRename = PriceItemRepository::fetch(*added);
+    QVERIFY(afterRename.has_value());
+    QCOMPARE(afterRename->updatedAt, lastChecked);
+
+    // A genuine price change does move it.
+    PriceItem repriced = *afterRename;
+    repriced.price = Money::fromMinorUnits(5000);
+    VERIFY_OK(PriceItemRepository::update(repriced));
+
+    const Result<PriceItem> afterReprice = PriceItemRepository::fetch(*added);
+    QVERIFY(afterReprice.has_value());
+    QCOMPARE(afterReprice->updatedAt, QDate::currentDate());
 }
 
 void TestPriceItemRepository::remove_takesHistoryWithIt()

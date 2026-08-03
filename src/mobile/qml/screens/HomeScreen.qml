@@ -33,9 +33,12 @@ Flickable {
             // while the year keeps Western digits, matching the amounts
             // below it. localeName is read so the binding re-runs on a
             // language switch; formatMonthYear is a plain call and would
-            // not be a binding dependency on its own.
-            text: AppBackend.localeName
-                ? AppBackend.formatMonthYear(new Date()) : ""
+            // not be a binding dependency on its own. Reading it is all it
+            // is for — the header must not depend on its value.
+            text: {
+                AppBackend.localeName
+                return AppBackend.formatMonthYear(new Date())
+            }
             font.pixelSize: Theme.fontSizeTitle
             font.weight: Font.DemiBold
             color: Theme.primaryInk

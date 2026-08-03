@@ -50,6 +50,11 @@ QtObject {
     // Brand colors (Material primary/accent, matching the app palette)
     readonly property color primary: "#2a78d6"
     readonly property color accent: "#1baf7a"
+    // Text and icons drawn *on* a primary or accent fill. Both brand colors
+    // are fixed across light and dark, so this one is fixed too — it is not
+    // the theme's ink, which would vanish into a blue chip in dark mode.
+    // Not named onPrimary: QML reads a leading "on" as a signal handler.
+    readonly property color inkOnPrimary: "#ffffff"
 
     readonly property bool dark: ThemeController.dark
     readonly property color surface: ThemeController.surface

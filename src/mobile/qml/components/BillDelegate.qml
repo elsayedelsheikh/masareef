@@ -47,11 +47,26 @@ ItemDelegate {
     // A paused bill is still listed, just visibly out of the running.
     opacity: active ? 1 : 0.55
 
-    onClicked: delegate.editRequested(delegate.index)
+    // A long press still ends in a release, which ItemDelegate reports as a
+    // click — so without this the actions sheet and the edit sheet would
+    // both open. Cleared on every new press, not only on the click that
+    // follows, in case the finger is lifted outside the row.
+    property bool _longPressed: false
+
+    onPressedChanged: if (pressed) _longPressed = false
+
+    onClicked: {
+        if (delegate._longPressed)
+            return
+        delegate.editRequested(delegate.index)
+    }
 
     TapHandler {
         acceptedButtons: Qt.LeftButton
-        onLongPressed: delegate.menuRequested(delegate.index)
+        onLongPressed: {
+            delegate._longPressed = true
+            delegate.menuRequested(delegate.index)
+        }
     }
 
     contentItem: RowLayout {

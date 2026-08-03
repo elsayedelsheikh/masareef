@@ -21,7 +21,11 @@ Button {
     icon.source: "../icons/calendar.svg"
     // localeName is read so the binding re-runs on a language switch;
     // formatDate() is a plain call and would not be a binding dependency.
-    text: AppBackend.localeName ? AppBackend.formatDate(value) : ""
+    // Reading it is all it is for — the date must not depend on its value.
+    text: {
+        AppBackend.localeName
+        return AppBackend.formatDate(value)
+    }
     font.pixelSize: Theme.fontSizeBody
     implicitHeight: Theme.touchTarget
 
@@ -65,9 +69,11 @@ Button {
                     Layout.preferredHeight: Theme.touchTarget
                     verticalAlignment: Text.AlignVCenter
                     horizontalAlignment: Text.AlignHCenter
-                    text: AppBackend.localeName
-                        ? AppBackend.formatMonthYear(new Date(grid.year, grid.month, 1))
-                        : ""
+                    text: {
+                        AppBackend.localeName
+                        return AppBackend.formatMonthYear(
+                            new Date(grid.year, grid.month, 1))
+                    }
                     font.pixelSize: Theme.fontSizeSubtitle
                     font.weight: Font.DemiBold
                     color: Theme.primaryInk

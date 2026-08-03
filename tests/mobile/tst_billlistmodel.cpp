@@ -23,6 +23,7 @@ private slots:
     void pausedBills_urgencyIsPaused();
     void activeCount_ignoresPausedBills();
     void monthlyTotal_normalizesEveryRecurrence();
+    void monthlyTotal_roundsToTheNearestMinorUnit();
     void monthlyTotal_ignoresPausedBills();
     void dueLabel_describesTheDueDate();
     void recurrenceLabel_isPresentForEveryRow();
@@ -246,6 +247,20 @@ void TestBillListModel::monthlyTotal_normalizesEveryRecurrence()
     BillListModel model;
     QCOMPARE(model.monthlyTotalFormatted(),
              CurrencyFormatter::format(Money::fromMinorUnits(30000)));
+}
+
+void TestBillListModel::monthlyTotal_roundsToTheNearestMinorUnit()
+{
+    // 100.00 a quarter is 33.33 a month and 100.00 a year is 8.33; truncating
+    // each of them would lose a piastre per bill.
+    addBill(m_billsId, QStringLiteral("Quarterly"), QStringLiteral("100"),
+            QDate::currentDate().addDays(5), Recurrence::Quarterly);
+    addBill(m_billsId, QStringLiteral("Yearly"), QStringLiteral("100"),
+            QDate::currentDate().addDays(6), Recurrence::Yearly);
+
+    BillListModel model;
+    QCOMPARE(model.monthlyTotalFormatted(),
+             CurrencyFormatter::format(Money::fromMinorUnits(3333 + 833)));
 }
 
 void TestBillListModel::monthlyTotal_ignoresPausedBills()

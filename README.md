@@ -121,9 +121,15 @@ podman run --rm -it -v "$PWD":/src:Z -w /src registry.fedoraproject.org/fedora:4
 ### Ubuntu / Debian
 
 A distribution Qt works if it is new enough and ships Qt Charts
-(`qt6-base-dev qt6-charts-dev`). **Ubuntu 24.04 LTS ships Qt 6.4.2, which is
-too old** — Ubuntu 24.10 and later (Qt 6.6+) are fine. On 24.04, install Qt
-via the [online installer](https://www.qt.io/download-qt-installer) or
+(`qt6-base-dev qt6-charts-dev`). The two builds want different versions:
+
+- **Desktop app** (Qt ≥ 6.5): **Ubuntu 24.04 LTS ships Qt 6.4.2, which is
+  too old**; Ubuntu 24.10 and later (Qt 6.6+) are fine.
+- **QML app** (Qt ≥ 6.8): not covered by 24.10 either — Ubuntu did not ship
+  a new enough Qt until 25.04.
+
+Where the distribution Qt falls short, install Qt via the
+[online installer](https://www.qt.io/download-qt-installer) or
 [aqtinstall](https://github.com/miurahr/aqtinstall) and point
 `CMAKE_PREFIX_PATH` at it (or use the `host-qml` preset, which does this
 for a `~/Qt` install — see below).

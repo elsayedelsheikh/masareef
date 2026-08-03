@@ -738,6 +738,10 @@
         <translation>يُحذف معه سجل أسعاره.</translation>
     </message>
     <message>
+        <source>Dismiss</source>
+        <translation>إخفاء</translation>
+    </message>
+    <message>
         <source>Search the price book</source>
         <translation>ابحث في دفتر الأسعار</translation>
     </message>
@@ -883,12 +887,12 @@
         <translation>الصنف %1 غير موجود في دفتر الأسعار</translation>
     </message>
     <message>
-        <source>Could not add &quot;%1&quot; — the price book may already have an item with this name.</source>
-        <translation>تعذَّرت إضافة &quot;%1&quot; — قد يوجد صنف بهذا الاسم في دفتر الأسعار بالفعل.</translation>
+        <source>Could not add &quot;%1&quot; — the price book already has an item with this name.</source>
+        <translation>تعذَّرت إضافة &quot;%1&quot; — يوجد صنف بهذا الاسم في دفتر الأسعار بالفعل.</translation>
     </message>
     <message>
-        <source>Could not save &quot;%1&quot; — the price book may already have an item with this name.</source>
-        <translation>تعذَّر حفظ &quot;%1&quot; — قد يوجد صنف بهذا الاسم في دفتر الأسعار بالفعل.</translation>
+        <source>Could not save &quot;%1&quot; — the price book already has an item with this name.</source>
+        <translation>تعذَّر حفظ &quot;%1&quot; — يوجد صنف بهذا الاسم في دفتر الأسعار بالفعل.</translation>
     </message>
 </context>
 <context>

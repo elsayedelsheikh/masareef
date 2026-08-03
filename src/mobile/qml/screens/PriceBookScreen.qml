@@ -25,6 +25,12 @@ Item {
     readonly property bool searching: screen.model
         && screen.model.searchText.length > 0
 
+    // Whatever went wrong with the last action on this screen. The sheets
+    // carry their own banners; this one is for the failures that happen
+    // with no sheet open — a delete, or a row that vanished before its edit
+    // sheet could load it.
+    property string errorMessage: ""
+
     // The row the action sheet is currently acting on. Captured by value,
     // not by index: the list can be refreshed out from under an open sheet.
     property var _actionRow: null
@@ -84,8 +90,12 @@ Item {
     }
 
     function _deleteActionRow() {
-        if (screen._actionRow && screen.controller)
-            screen.controller.remove(screen._actionRow.priceItemId)
+        if (!screen._actionRow || !screen.controller)
+            return
+        if (screen.controller.remove(screen._actionRow.priceItemId))
+            screen.errorMessage = ""
+        else
+            screen.errorMessage = screen.controller.lastError
     }
 
     // Keep the list in sync with controller-driven changes even when this
@@ -133,6 +143,16 @@ Item {
         anchors.fill: parent
         anchors.margins: Theme.spacingM
         spacing: Theme.spacingM
+
+        InlineBanner {
+            Layout.fillWidth: true
+            visible: screen.errorMessage.length > 0
+            message: screen.errorMessage
+            tint: Theme.criticalTint
+            ink: Theme.critical
+            actionText: qsTr("Dismiss")
+            onActionTriggered: screen.errorMessage = ""
+        }
 
         SearchField {
             Layout.fillWidth: true

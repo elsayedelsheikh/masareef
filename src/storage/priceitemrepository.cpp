@@ -37,11 +37,21 @@ PriceItem itemFromQuery(const QSqlQuery& query)
     item.updatedAt = QDate::fromString(query.value(5).toString(), Qt::ISODate);
     item.categoryName = query.value(6).toString();
     item.categoryColor = query.value(7).toString();
-    if (!query.value(8).isNull()) {
+    if (!query.value(8).isNull())
         item.previousPrice = Money::fromMinorUnits(query.value(8).toLongLong());
-        item.hasPreviousPrice = true;
-    }
     return item;
+}
+
+// The name index is the only UNIQUE constraint on price_items, so a
+// constraint violation there is always a duplicate name. Anything else —
+// a locked file, a disk error — has to report itself, not be dressed up as
+// a name clash. SQLite answers with result code 19 (SQLITE_CONSTRAINT) or
+// its extended form 2067 (SQLITE_CONSTRAINT_UNIQUE) depending on the
+// build, hence both.
+bool isDuplicateName(const QSqlError& error)
+{
+    const QString code = error.nativeErrorCode();
+    return code == QLatin1String("19") || code == QLatin1String("2067");
 }
 
 QVariant categoryBind(const std::optional<int>& categoryId)
@@ -141,9 +151,12 @@ Result<int> add(const PriceItem& item)
                            ? item.updatedAt.toString(Qt::ISODate)
                            : QDate::currentDate().toString(Qt::ISODate));
     if (!query.exec()) {
-        return rollback(tr("Could not add \"%1\" — the price book may already "
-                           "have an item with this name.")
-                            .arg(item.name.trimmed()));
+        const QSqlError error = query.lastError();
+        return rollback(isDuplicateName(error)
+                            ? tr("Could not add \"%1\" — the price book already "
+                                 "has an item with this name.")
+                                  .arg(item.name.trimmed())
+                            : error.text());
     }
 
     const int newId = query.lastInsertId().toInt();
@@ -183,17 +196,28 @@ Result<void> update(const PriceItem& item)
     query.addBindValue(categoryBind(item.categoryId));
     query.addBindValue(item.unit.trimmed());
     query.addBindValue(qint64(item.price.minorUnits()));
-    query.addBindValue(QDate::currentDate().toString(Qt::ISODate));
+    // "Updated" means the price moved. A rename or a unit fix leaves the
+    // date alone, so the row keeps saying when the price was last checked
+    // — unless the stored date is unreadable, which today is the only
+    // chance to replace it with a real one.
+    const bool priceChanged = item.price != existing->price;
+    const QDate updatedAt = (priceChanged || !existing->updatedAt.isValid())
+        ? QDate::currentDate()
+        : existing->updatedAt;
+    query.addBindValue(updatedAt.toString(Qt::ISODate));
     query.addBindValue(item.id);
     if (!query.exec()) {
-        return rollback(tr("Could not save \"%1\" — the price book may already "
-                           "have an item with this name.")
-                            .arg(item.name.trimmed()));
+        const QSqlError error = query.lastError();
+        return rollback(isDuplicateName(error)
+                            ? tr("Could not save \"%1\" — the price book already "
+                                 "has an item with this name.")
+                                  .arg(item.name.trimmed())
+                            : error.text());
     }
 
     // Only a real price change belongs in the history; renaming an item or
     // fixing its unit must not invent a price movement.
-    if (item.price != existing->price) {
+    if (priceChanged) {
         if (auto recorded =
                 recordPrice(query, item.id, item.price, QDate::currentDate());
             !recorded) {

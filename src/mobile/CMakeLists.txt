@@ -95,6 +95,8 @@ qt_add_qml_module(masareef_quick
         backend/priceitemcontroller.h
         backend/pricelistmodel.cpp
         backend/pricelistmodel.h
+        backend/qmltypes.cpp
+        backend/qmltypes.h
         backend/reportsviewmodel.cpp
         backend/reportsviewmodel.h
         backend/themecontroller.cpp
@@ -110,6 +112,9 @@ qt_add_translations(masareef_quick
     SOURCE_TARGETS masareef_quick masareef_core
     TS_FILES i18n/masareef_ar.ts
     RESOURCE_PREFIX "/i18n"
+    # The catalog is maintained by hand and carries no <location> elements;
+    # without this an lupdate run would write thousands of them back in.
+    LUPDATE_OPTIONS -locations none
 )
 
 qt_add_executable(masareef_mobile main.cpp)

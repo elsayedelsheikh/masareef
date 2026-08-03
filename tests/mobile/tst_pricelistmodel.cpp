@@ -88,21 +88,27 @@ void TestPriceListModel::emptyModel_hasNoRows()
 void TestPriceListModel::roleNames_coverEveryRole()
 {
     PriceListModel model;
-    const auto names = model.roleNames();
-    // Every delegate binds by role name, so a missing entry is a runtime
-    // error in QML rather than a compile error here.
-    const QList<int> expected = {
-        PriceListModel::PriceItemIdRole,       PriceListModel::NameRole,
-        PriceListModel::UnitRole,              PriceListModel::PriceMinorRole,
-        PriceListModel::PriceFormattedRole,    PriceListModel::CategoryIdRole,
-        PriceListModel::CategoryNameRole,      PriceListModel::CategoryColorRole,
-        PriceListModel::HasCategoryRole,       PriceListModel::UpdatedAtFormattedRole,
-        PriceListModel::HasPreviousPriceRole,  PriceListModel::PreviousPriceFormattedRole,
-        PriceListModel::PriceRoseRole,         PriceListModel::PriceFellRole,
-        PriceListModel::ChangePercentRole,
+    // Every delegate binds by role name, so a missing entry — or a typo in
+    // one — is a runtime error in QML rather than a compile error here.
+    // Compared whole so an extra role cannot slip in unnamed either.
+    const QHash<int, QByteArray> expected = {
+        { PriceListModel::PriceItemIdRole, "priceItemId" },
+        { PriceListModel::NameRole, "name" },
+        { PriceListModel::UnitRole, "unit" },
+        { PriceListModel::PriceMinorRole, "priceMinor" },
+        { PriceListModel::PriceFormattedRole, "priceFormatted" },
+        { PriceListModel::CategoryIdRole, "categoryId" },
+        { PriceListModel::CategoryNameRole, "categoryName" },
+        { PriceListModel::CategoryColorRole, "categoryColor" },
+        { PriceListModel::HasCategoryRole, "hasCategory" },
+        { PriceListModel::UpdatedAtFormattedRole, "updatedAtFormatted" },
+        { PriceListModel::HasPreviousPriceRole, "hasPreviousPrice" },
+        { PriceListModel::PreviousPriceFormattedRole, "previousPriceFormatted" },
+        { PriceListModel::PriceRoseRole, "priceRose" },
+        { PriceListModel::PriceFellRole, "priceFell" },
+        { PriceListModel::ChangePercentRole, "changePercent" },
     };
-    for (int role : expected)
-        QVERIFY2(names.contains(role), QByteArray::number(role).constData());
+    QCOMPARE(model.roleNames(), expected);
 }
 
 void TestPriceListModel::data_exposesEveryRole()

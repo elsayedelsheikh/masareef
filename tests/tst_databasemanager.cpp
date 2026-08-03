@@ -88,10 +88,14 @@ void TestDatabaseManager::upgrade_fromV2_runsEveryLaterStep()
     QVERIFY(query.next());
     QCOMPARE(query.value(0).toInt(), 0);
 
-    // v4 ran, and the existing rows survived it
+    // v4 ran, and the existing rows survived it: the legacy category was
+    // converted, not deleted, which a bare non-empty count would not catch.
     QCOMPARE(TestUtils::countRows(QStringLiteral("price_items")), 0);
     QCOMPARE(TestUtils::countRows(QStringLiteral("price_history")), 0);
-    QVERIFY(TestUtils::countRows(QStringLiteral("categories")) > 0);
+    QVERIFY(query.exec(QStringLiteral(
+        "SELECT type FROM categories WHERE name = 'LegacySystem'")));
+    QVERIFY(query.next());
+    QCOMPARE(query.value(0).toString(), QStringLiteral("user"));
 }
 
 void TestDatabaseManager::foreignKeys_areEnforced()

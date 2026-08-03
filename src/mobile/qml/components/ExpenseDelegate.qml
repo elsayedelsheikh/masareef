@@ -31,7 +31,18 @@ SwipeDelegate {
                              content.implicitHeight + 2 * Theme.spacingS)
     padding: Theme.spacingS
 
+    // A long press still ends in a release, which SwipeDelegate reports as
+    // a click — so without this the long press would be undone by the tap
+    // that ends it (in selection mode) or open a sheet on top of the
+    // actions. Cleared on every new press, in case the finger is lifted
+    // outside the row.
+    property bool _longPressed: false
+
+    onPressedChanged: if (pressed) _longPressed = false
+
     onClicked: {
+        if (delegate._longPressed)
+            return
         if (selectionMode)
             selectionToggled(index)
         else
@@ -43,6 +54,7 @@ SwipeDelegate {
         // In selection mode a long press keeps extending the selection;
         // otherwise it opens the row's actions.
         onLongPressed: {
+            delegate._longPressed = true
             if (delegate.selectionMode)
                 delegate.selectionToggled(delegate.index)
             else

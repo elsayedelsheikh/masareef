@@ -126,6 +126,10 @@ QString dueLabel(QDate nextDue)
     return translate("Overdue by %n day(s)", -days);
 }
 
+// Expects a non-negative amount: this is what an amount field is prefilled
+// with, and CurrencyFormatter::parse — the other half of that round trip —
+// rejects a leading "-". The sign is emitted anyway so a negative value
+// shows up as an unsavable field rather than as a wrong positive number.
 QString amountForEditing(Money amount)
 {
     const std::int64_t minorUnits = amount.minorUnits();

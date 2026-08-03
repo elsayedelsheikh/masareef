@@ -1,6 +1,6 @@
 #include "backend/appbackend.h"
+#include "backend/qmltypes.h"
 #include "backend/themecontroller.h"
-#include "core/recurrence.h"
 #include "db/databasemanager.h"
 #include "utils/backupmanager.h"
 
@@ -23,10 +23,7 @@ int main(int argc, char* argv[])
     // Auto startup backup (keep-newest-10 policy in BackupManager)
     BackupManager::createStartupBackup();
 
-    // Register Recurrence enum for QML
-    qmlRegisterUncreatableMetaObject(RecurrenceNS::staticMetaObject,
-                                     "Masareef", 1, 0, "Recurrence",
-                                     "Recurrence is an enum namespace");
+    MasareefQml::registerTypes();
 
     QQmlApplicationEngine engine;
     QObject::connect(&engine, &QQmlApplicationEngine::objectCreationFailed, &app,

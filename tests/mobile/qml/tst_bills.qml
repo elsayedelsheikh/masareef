@@ -15,6 +15,16 @@ Item {
         onEditRequested: (billId) => root.lastEditId = billId
     }
 
+    AddBillSheet {
+        id: addSheet
+        controller: screen.controller
+    }
+
+    EditBillSheet {
+        id: editSheet
+        controller: screen.controller
+    }
+
     TestCase {
         id: testCase
         name: "BillsScreen"
@@ -132,6 +142,31 @@ Item {
             screen._runAction("delete")
             screen._deleteActionRow()
             compare(screen.model.count, 1)
+        }
+
+        // The segmented control's index is not a Recurrence value; the form
+        // maps between them. Saving a bill as Yearly and reopening it has to
+        // land on the same segment, whatever order either list is in.
+        function test_recurrenceSurvivesTheRoundTripThroughTheSheets() {
+            addSheet.startOver()
+            addSheet.nameText = "Insurance"
+            addSheet.amountText = "1200"
+            addSheet.selectedCategoryId = TestFixture.categoryId("Bills")
+            addSheet.nextDueDate = new Date(2026, 7, 1)
+            addSheet.selectedRecurrence = 2 // the "Yearly" segment
+            verify(addSheet.canSave)
+            addSheet.save()
+            verify(addSheet.errorMessage.length === 0, addSheet.errorMessage)
+
+            tryVerify(function() { return screen.model.count === 1 })
+            const id = screen.model.billIdAt(0)
+
+            editSheet.openFor(id)
+            tryVerify(function() { return editSheet.opened })
+            // Stored as the enum, shown as the segment.
+            compare(screen.controller.editRecurrence, Recurrence.Yearly)
+            compare(editSheet.selectedRecurrence, 2)
+            editSheet.close()
         }
 
         function test_deleteRemovesTheBill() {

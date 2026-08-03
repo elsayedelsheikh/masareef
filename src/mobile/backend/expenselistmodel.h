@@ -60,6 +60,10 @@ public:
     Q_INVOKABLE void refresh();
     Q_INVOKABLE bool removeAt(int row);
     Q_INVOKABLE int expenseIdAt(int row) const;
+    // The reverse lookup: a row captured before a refresh is identified by
+    // its id, not its index, so acting on it later has to find it again.
+    // -1 when the expense is no longer in the current filter.
+    Q_INVOKABLE int rowForExpenseId(int expenseId) const;
     // All roles of one row as a map (QML has no model.data by role name);
     // used to stash a row for undo before deleting it.
     Q_INVOKABLE QVariantMap get(int row) const;

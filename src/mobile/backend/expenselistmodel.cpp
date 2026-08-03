@@ -137,6 +137,15 @@ int ExpenseListModel::expenseIdAt(int row) const
     return m_rows.at(row).expense.id;
 }
 
+int ExpenseListModel::rowForExpenseId(int expenseId) const
+{
+    for (qsizetype row = 0; row < m_rows.size(); ++row) {
+        if (m_rows.at(row).expense.id == expenseId)
+            return int(row);
+    }
+    return -1;
+}
+
 QVariantMap ExpenseListModel::get(int row) const
 {
     if (row < 0 || row >= m_rows.size())

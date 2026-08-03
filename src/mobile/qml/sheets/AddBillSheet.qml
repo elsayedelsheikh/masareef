@@ -24,11 +24,12 @@ BottomSheet {
     function save() {
         if (!canSave || !controller)
             return
-        // selectedRecurrence is the segment index, matching the Recurrence
-        // enum order (Monthly=0, Quarterly=1, Yearly=2); QML marshals the int.
+        // selectedRecurrence is the segment index, not a Recurrence value —
+        // the form owns the mapping between the two.
         const id = controller.add(form.selectedCategoryId, form.amountText,
                                   form.nameText, form.nextDueDate,
-                                  form.selectedRecurrence, form.notesText)
+                                  form.recurrenceFor(form.selectedRecurrence),
+                                  form.notesText)
         if (id > 0) {
             startOver()
             close()

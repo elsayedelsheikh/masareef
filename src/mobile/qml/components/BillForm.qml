@@ -11,7 +11,10 @@ ColumnLayout {
     property alias amountText: amountField.text
     property alias selectedCategoryId: categoryPicker.selectedCategoryId
     property alias nextDueDate: dateField.value
-    // Index into the Recurrence enum (Monthly = 0, Quarterly = 1, Yearly = 2)
+    // The segmented control's index. It is not a Recurrence value: the two
+    // orders agree today, but the segments are a UI choice and the enum is
+    // a storage one, so the sheets convert through recurrenceFor() /
+    // segmentFor() below rather than passing the index through.
     property alias selectedRecurrence: recurrencePicker.currentIndex
     property alias notesText: notesField.text
     property var categories // CategoryListModel
@@ -25,12 +28,31 @@ ColumnLayout {
         || amountText.length > 0 || notesText.length > 0
         || selectedCategoryId > 0
 
+    // The one place the segment order and the Recurrence enum are tied
+    // together: the segments below are built from it, and both bill sheets
+    // convert through the two functions, so reordering either list cannot
+    // quietly save the wrong cadence.
+    readonly property var recurrenceOrder: [Recurrence.Monthly,
+                                            Recurrence.Quarterly,
+                                            Recurrence.Yearly]
+
+    function recurrenceFor(segmentIndex) {
+        return segmentIndex >= 0 && segmentIndex < recurrenceOrder.length
+            ? recurrenceOrder[segmentIndex]
+            : Recurrence.Monthly
+    }
+
+    function segmentFor(recurrence) {
+        const index = recurrenceOrder.indexOf(recurrence)
+        return index >= 0 ? index : 0
+    }
+
     function clear() {
         nameText = ""
         amountText = ""
         notesText = ""
         selectedCategoryId = -1
-        selectedRecurrence = 0 // Monthly
+        selectedRecurrence = form.segmentFor(Recurrence.Monthly)
         nextDueDate = new Date()
     }
 
@@ -63,6 +85,7 @@ ColumnLayout {
     SegmentedControl {
         id: recurrencePicker
         Layout.fillWidth: true
+        // One label per entry of recurrenceOrder, in the same order.
         options: [qsTr("Monthly"), qsTr("Quarterly"), qsTr("Yearly")]
     }
 

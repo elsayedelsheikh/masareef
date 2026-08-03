@@ -48,6 +48,18 @@ TextField {
     rightPadding: Theme.rtl ? Theme.spacingM : suffixSpace
     Material.accent: showsError ? Theme.critical : Theme.primary
 
+    // Material only paints the accent under a focused field, so a field
+    // left in an invalid state would look untouched the moment focus moves
+    // on. This underline does not care about focus.
+    Rectangle {
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        visible: field.showsError
+        height: 2
+        color: Theme.critical
+    }
+
     Text {
         id: currencyLabel
 

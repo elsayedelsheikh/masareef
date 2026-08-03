@@ -8,15 +8,24 @@
 
 namespace {
 
+// Rounds to the nearest minor unit rather than truncating: a 100.00
+// quarterly bill is 33.33 a month, and dropping the third of a piastre on
+// every bill would quietly understate the total.
+Money perMonth(Money amount, std::int64_t months)
+{
+    const std::int64_t minorUnits = amount.minorUnits();
+    return Money::fromMinorUnits((minorUnits + months / 2) / months);
+}
+
 // One bill's cost expressed per month, so bills on different cadences can
 // be added up into a single "this is what your bills cost" figure.
 Money monthlyEquivalent(const RecurringBill& bill)
 {
     switch (bill.recurrence) {
     case Recurrence::Quarterly:
-        return Money::fromMinorUnits(bill.amount.minorUnits() / 3);
+        return perMonth(bill.amount, 3);
     case Recurrence::Yearly:
-        return Money::fromMinorUnits(bill.amount.minorUnits() / 12);
+        return perMonth(bill.amount, 12);
     case Recurrence::Monthly:
         break;
     }

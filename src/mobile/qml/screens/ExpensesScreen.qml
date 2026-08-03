@@ -19,20 +19,22 @@ Item {
     property date filterFromDate
     property date filterToDate
 
-    // The row the action sheet is acting on. The row data is captured by
-    // value because a refresh can reorder the list while the sheet is open;
-    // the index is kept alongside it for the actions that need one.
+    // The row the action sheet is acting on, captured by value: a refresh
+    // can reorder the list while the sheet is open, so every action works
+    // from the captured expense id rather than the index it had then.
     property var _actionRow: null
-    property int _actionRowIndex: -1
 
     // Deletes through the controller (so every view refreshes) and offers
     // undo via restore.
     function removeAt(row) {
-        const removed = model.get(row)
-        if (removed.expenseId === undefined || !controller)
+        _removeCaptured(model ? model.get(row) : null)
+    }
+
+    function _removeCaptured(captured) {
+        if (!captured || captured.expenseId === undefined || !controller)
             return
-        if (controller.remove(removed.expenseId)) {
-            _pendingUndo = removed
+        if (controller.remove(captured.expenseId)) {
+            _pendingUndo = captured
             snackbar.show(qsTr("Expense deleted"), qsTr("Undo"))
         }
     }
@@ -58,7 +60,6 @@ Item {
         if (!captured || captured.expenseId === undefined)
             return
         _actionRow = captured
-        _actionRowIndex = row
 
         actionSheet.openWith(
             captured.description.length > 0 ? captured.description
@@ -92,13 +93,17 @@ Item {
             else
                 snackbar.show(controller.lastError)
             break
-        case "select":
-            if (_actionRowIndex >= 0)
-                toggleSelect(_actionRowIndex)
+        case "select": {
+            // Selection is tracked by row, so the captured expense has to
+            // be found again — it may have moved, or gone, since the sheet
+            // opened.
+            const row = model ? model.rowForExpenseId(captured.expenseId) : -1
+            if (row >= 0)
+                toggleSelect(row)
             break
+        }
         case "delete":
-            if (_actionRowIndex >= 0)
-                removeAt(_actionRowIndex)
+            _removeCaptured(captured)
             break
         }
     }
@@ -290,9 +295,12 @@ Item {
                     // toLocaleDateString would use the process locale and
                     // Arabic-Indic numerals that clash with the amounts.
                     // localeName is read so the binding re-runs on a
-                    // language switch.
-                    text: AppBackend.localeName
-                        ? AppBackend.formatDateSection(section) : ""
+                    // language switch; it is a dependency, not a condition,
+                    // so an empty one must not blank the header.
+                    text: {
+                        AppBackend.localeName
+                        return AppBackend.formatDateSection(section)
+                    }
                     font.pixelSize: Theme.fontSizeCaption
                     font.weight: Font.DemiBold
                     color: Theme.mutedInk

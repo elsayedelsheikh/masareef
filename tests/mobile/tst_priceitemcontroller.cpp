@@ -26,6 +26,8 @@ private slots:
 
     void update_changesTheRowAndSignals();
     void update_rejectsAnUnknownId();
+    void update_rejectsUnparseablePrice();
+    void update_rejectsANameTakenByAnotherItem();
 
     void remove_deletesAndSignals();
     void remove_reportsAnUnknownId();
@@ -191,6 +193,47 @@ void TestPriceItemController::update_rejectsAnUnknownId()
                                QStringLiteral("10")));
     QVERIFY(!controller.lastError().isEmpty());
     QCOMPARE(updatedSpy.count(), 0);
+}
+
+void TestPriceItemController::update_rejectsUnparseablePrice()
+{
+    PriceItemController controller;
+    const int id = controller.add(QStringLiteral("Milk"), m_groceriesId,
+                                  QStringLiteral("litre"), QStringLiteral("45"));
+    QVERIFY(id > 0);
+
+    QSignalSpy updatedSpy(&controller, &PriceItemController::priceItemUpdated);
+    QVERIFY(!controller.update(id, QStringLiteral("Milk"), m_groceriesId,
+                               QStringLiteral("litre"), QStringLiteral("abc")));
+    QVERIFY(!controller.lastError().isEmpty());
+    QCOMPARE(updatedSpy.count(), 0);
+
+    // The stored price is untouched, not zeroed by the failed parse.
+    const Result<PriceItem> stored = PriceItemRepository::fetch(id);
+    QVERIFY(stored.has_value());
+    QCOMPARE(stored->price.minorUnits(), 4500);
+}
+
+void TestPriceItemController::update_rejectsANameTakenByAnotherItem()
+{
+    PriceItemController controller;
+    QVERIFY(controller.add(QStringLiteral("Milk"), m_groceriesId,
+                           QStringLiteral("litre"), QStringLiteral("45"))
+            > 0);
+    const int rice = controller.add(QStringLiteral("Rice"), m_groceriesId,
+                                    QStringLiteral("kg"), QStringLiteral("30"));
+    QVERIFY(rice > 0);
+
+    QSignalSpy updatedSpy(&controller, &PriceItemController::priceItemUpdated);
+    QVERIFY(!controller.update(rice, QStringLiteral("milk"), m_groceriesId,
+                               QStringLiteral("kg"), QStringLiteral("30")));
+    // The message has to name the problem, not just say "failed".
+    QVERIFY(controller.lastError().contains(QStringLiteral("milk")));
+    QCOMPARE(updatedSpy.count(), 0);
+
+    const Result<PriceItem> stored = PriceItemRepository::fetch(rice);
+    QVERIFY(stored.has_value());
+    QCOMPARE(stored->name, QStringLiteral("Rice"));
 }
 
 void TestPriceItemController::remove_deletesAndSignals()

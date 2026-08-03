@@ -133,14 +133,22 @@ Item {
         }
 
         // A failed save keeps everything, so nothing has to be retyped.
+        // The form stays valid on purpose: a save blocked by canSave never
+        // reaches the controller, and would not exercise this at all.
         function test_failedSaveKeepsTheForm() {
             sheet.amountText = "250.99"
             sheet.descriptionText = "Bread"
-            // No category, so the controller refuses it.
-            sheet.selectedCategoryId = -1
+            // A category that does not exist: the form is happy with any
+            // positive id, the foreign key is not.
+            sheet.selectedCategoryId = 424242
+            verify(sheet.canSave, "the save has to reach the controller")
+
             sheet.save()
 
             compare(addedSpy.count, 0)
+            verify(sheet.opened, "a failed save must not close the sheet")
+            verify(sheet.errorMessage.length > 0,
+                   "the controller's reason has to reach the sheet")
             compare(sheet.amountText, "250.99")
             compare(sheet.descriptionText, "Bread")
         }

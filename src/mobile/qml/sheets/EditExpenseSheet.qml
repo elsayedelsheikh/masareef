@@ -20,21 +20,25 @@ BottomSheet {
     property string errorMessage: ""
 
     function openFor(id) {
-        expenseId = id
+        if (!controller)
+            return
         errorMessage = ""
         categoriesModel.refresh()
-        if (controller && controller.load(id)) {
-            form.amountText = controller.editAmountText
-            form.selectedCategoryId = controller.editCategoryId
-            form.descriptionText = controller.editDescription
-            form.notesText = controller.editNotes
-            form.date = controller.editDate
-            open()
-        }
+        // Load before committing to the id: if the expense is gone (deleted
+        // on another screen) the sheet must not stay bound to it.
+        if (!controller.load(id))
+            return
+        expenseId = id
+        form.amountText = controller.editAmountText
+        form.selectedCategoryId = controller.editCategoryId
+        form.descriptionText = controller.editDescription
+        form.notesText = controller.editNotes
+        form.date = controller.editDate
+        open()
     }
 
     function save() {
-        if (!canSave || !controller)
+        if (!canSave || !controller || expenseId <= 0)
             return
         if (controller.update(expenseId, form.selectedCategoryId, form.amountText,
                               form.descriptionText, form.date, form.notesText))
@@ -44,7 +48,7 @@ BottomSheet {
     }
 
     function removeExpense() {
-        if (!controller)
+        if (!controller || expenseId <= 0)
             return
         if (controller.remove(expenseId))
             close()

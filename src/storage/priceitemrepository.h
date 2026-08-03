@@ -26,16 +26,15 @@ struct PriceItem {
 
     // The price recorded before the current one, when there is one. Drives
     // the "up 12% since last time" hint in the UI.
-    Money previousPrice;
-    bool hasPreviousPrice = false;
+    std::optional<Money> previousPrice;
 
     [[nodiscard]] bool priceRose() const
     {
-        return hasPreviousPrice && price > previousPrice;
+        return previousPrice && price > *previousPrice;
     }
     [[nodiscard]] bool priceFell() const
     {
-        return hasPreviousPrice && price < previousPrice;
+        return previousPrice && price < *previousPrice;
     }
 };
 

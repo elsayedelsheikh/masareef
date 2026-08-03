@@ -47,18 +47,18 @@ QVariant PriceListModel::data(const QModelIndex& index, int role) const
     case UpdatedAtFormattedRole:
         return LocaleFormat::shortDate(item.updatedAt);
     case HasPreviousPriceRole:
-        return item.hasPreviousPrice;
+        return item.previousPrice.has_value();
     case PreviousPriceFormattedRole:
-        return item.hasPreviousPrice ? CurrencyFormatter::format(item.previousPrice)
-                                     : QString();
+        return item.previousPrice ? CurrencyFormatter::format(*item.previousPrice)
+                                  : QString();
     case PriceRoseRole:
         return item.priceRose();
     case PriceFellRole:
         return item.priceFell();
     case ChangePercentRole: {
-        if (!item.hasPreviousPrice || item.previousPrice.isZero())
+        if (!item.previousPrice || item.previousPrice->isZero())
             return 0.0;
-        const double previous = double(item.previousPrice.minorUnits());
+        const double previous = double(item.previousPrice->minorUnits());
         const double current = double(item.price.minorUnits());
         return (current - previous) / previous * 100.0;
     }

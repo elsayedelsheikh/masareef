@@ -35,6 +35,9 @@ Rectangle {
         Text {
             Layout.fillWidth: true
             text: banner.message
+            // Messages carry item names and database error text; a stray
+            // "<" in one must read as a "<", not open a tag.
+            textFormat: Text.PlainText
             font.pixelSize: Theme.fontSizeBody
             color: banner.ink
             wrapMode: Text.WordWrap

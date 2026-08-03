@@ -41,6 +41,7 @@ Item {
             verify(TestFixture.resetDatabase())
             screen.model.searchText = ""
             screen.model.refresh() // drop rows cached from a prior test
+            screen.errorMessage = ""
             root.lastEditId = -1
             root.lastEditPreviousPrice = ""
             root.lastLogged = null
@@ -121,6 +122,10 @@ Item {
             compare(root.lastLogged.description, "Milk")
             compare(root.lastLogged.categoryId, TestFixture.categoryId("Groceries"))
             // Ungrouped, so the amount field can parse it straight back.
+            // The exact spelling is locale-independent by construction:
+            // LocaleFormat::amountForEditing always writes ASCII digits and
+            // a "." separator, whatever the UI language is. If that ever
+            // becomes locale-aware, this is the assertion that says so.
             compare(root.lastLogged.amountText, "45.50")
         }
 
@@ -148,6 +153,21 @@ Item {
             tryVerify(function() { return screen.model.count === 0 })
         }
 
+        // A delete that cannot happen has to say why: the row was captured
+        // when the sheet opened, and it can be gone by the time the
+        // confirmation comes back.
+        function test_aFailedDeleteReportsItself() {
+            const id = addItem("Milk", "45.50", "litre")
+            tryVerify(function() { return screen.model.count === 1 })
+
+            screen.openActionsFor(0)
+            verify(screen.controller.remove(id)) // deleted from elsewhere
+            screen._deleteActionRow()
+
+            verify(screen.errorMessage.length > 0,
+                   "the failure must reach the screen")
+        }
+
         function test_actionsOnAnOutOfRangeRowAreIgnored() {
             addItem("Milk", "45.50", "litre")
             tryVerify(function() { return screen.model.count === 1 })
@@ -155,9 +175,17 @@ Item {
             // Nothing captured, so nothing must happen — in particular the
             // stale row from a previous open must not be acted on.
             screen._actionRow = null
+            screen._runAction("edit")
+            screen._runAction("log")
+            screen._runAction("duplicate")
             screen._runAction("delete")
             screen._deleteActionRow()
+
             compare(screen.model.count, 1)
+            compare(root.lastEditId, -1)
+            compare(root.lastLogged, null)
+            compare(root.lastDuplicated, null)
+            compare(screen.errorMessage, "")
         }
     }
 }

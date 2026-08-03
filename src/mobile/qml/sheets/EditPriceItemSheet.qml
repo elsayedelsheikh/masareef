@@ -20,6 +20,10 @@ BottomSheet {
     readonly property bool canSave: form.valid
     property string errorMessage: ""
 
+    // The load failed, so this sheet never opens and its own banner would
+    // never be seen — whoever asked for it has to say so instead.
+    signal openFailed(string message)
+
     function openFor(id, previousPrice) {
         if (!controller)
             return
@@ -29,7 +33,7 @@ BottomSheet {
         if (!controller.load(id)) {
             // The row is gone (deleted on another screen); say so rather
             // than opening a sheet bound to nothing.
-            errorMessage = controller.lastError
+            openFailed(controller.lastError)
             return
         }
         priceItemId = id

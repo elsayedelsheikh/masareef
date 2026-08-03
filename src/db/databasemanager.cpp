@@ -107,6 +107,9 @@ const QStringList kV4Statements = {
         " unit TEXT,"
         " price INTEGER NOT NULL CHECK(price >= 0),"
         " updated_at DATE NOT NULL)"),
+    // NOCASE case-folds ASCII A-Z only: SQLite leaves accented and
+    // non-Latin letters alone, so "ARZ" and "arz" collide while two Arabic
+    // spellings that differ only in case-like forms do not.
     QStringLiteral(
         "CREATE UNIQUE INDEX idx_price_items_name ON price_items(name COLLATE NOCASE)"),
     QStringLiteral(

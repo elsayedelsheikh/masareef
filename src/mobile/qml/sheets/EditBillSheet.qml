@@ -32,7 +32,7 @@ BottomSheet {
         form.amountText = controller.editAmountText
         form.nameText = controller.editName
         form.selectedCategoryId = controller.editCategoryId
-        form.selectedRecurrence = controller.editRecurrence
+        form.selectedRecurrence = form.segmentFor(controller.editRecurrence)
         form.notesText = controller.editNotes
         form.nextDueDate = controller.editNextDue
         open()
@@ -43,7 +43,8 @@ BottomSheet {
             return
         if (controller.update(billId, form.selectedCategoryId, form.amountText,
                               form.nameText, form.nextDueDate,
-                              form.selectedRecurrence, form.notesText))
+                              form.recurrenceFor(form.selectedRecurrence),
+                              form.notesText))
             close()
         else
             errorMessage = controller.lastError

@@ -44,8 +44,18 @@ Item {
 
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                // So the control asks for enough room to show its longest
+                // option; callers that fill a row get that instead.
+                Layout.minimumWidth: segmentLabel.implicitWidth + Theme.spacingM
+                implicitWidth: Layout.minimumWidth
                 radius: Theme.radiusS - 2
                 color: selected ? Theme.primary : "transparent"
+
+                Accessible.role: Accessible.RadioButton
+                Accessible.name: segment.modelData
+                Accessible.checkable: true
+                Accessible.checked: segment.selected
+                Accessible.onPressAction: control.currentIndex = segment.index
 
                 Behavior on color {
                     ColorAnimation {
@@ -55,6 +65,8 @@ Item {
                 }
 
                 Text {
+                    id: segmentLabel
+
                     anchors.centerIn: parent
                     width: parent.width - Theme.spacingS
                     text: segment.modelData
@@ -62,7 +74,7 @@ Item {
                     elide: Text.ElideRight
                     font.pixelSize: Theme.fontSizeBody
                     font.weight: segment.selected ? Font.DemiBold : Font.Normal
-                    color: segment.selected ? "#ffffff" : Theme.secondaryInk
+                    color: segment.selected ? Theme.inkOnPrimary : Theme.secondaryInk
                 }
 
                 TapHandler {

@@ -31,11 +31,13 @@ BottomSheet {
     // Opens the sheet already filled in from another screen — logging a
     // price book item as an expense. This replaces whatever draft was in
     // the form, so the sheet says so rather than silently swapping it.
-    function openPrefilled(categoryId, amountText, description) {
+    // The parameters are named apart from the sheet's own amountText and
+    // descriptionText properties, which they would otherwise shadow.
+    function openPrefilled(categoryId, amount, text) {
         startOver()
         form.selectedCategoryId = categoryId
-        form.amountText = amountText
-        form.descriptionText = description
+        form.amountText = amount
+        form.descriptionText = text
         form.date = new Date()
         prefilled = true
         open()

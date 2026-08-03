@@ -170,6 +170,16 @@ ApplicationWindow {
         Page {
             background: Rectangle { color: Theme.surface }
 
+            Connections {
+                target: editPriceSheet
+                // The sheet never opened, so its own banner would never be
+                // seen — the message belongs back on the screen that asked
+                // for it.
+                function onOpenFailed(message) {
+                    priceBookScreen.errorMessage = message
+                }
+            }
+
             StackLayout {
                 anchors.fill: parent
                 currentIndex: navBar.currentIndex
@@ -191,6 +201,7 @@ ApplicationWindow {
                     onEditRequested: (billId) => editBillSheet.openFor(billId)
                 }
                 PriceBookScreen {
+                    id: priceBookScreen
                     controller: priceItemController
                     model: pricesModel
                     onEditRequested: (priceItemId, previousPrice) =>
